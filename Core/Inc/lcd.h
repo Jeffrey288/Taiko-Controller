@@ -30,20 +30,37 @@
 #define PINK        	0xF81F
 
 #define swap(a,b) 		{int16_t t=a;a=b;b=t;}
-#define BURST_MAX_SIZE 	500
 
-void Show_Menu(void);
+#define      LCD_Default_Max_COLUMN	240
+#define      LCD_Default_Max_PAGE	320
+
+#define      LCD_DispWindow_Start_COLUMN	0
+#define      LCD_DispWindow_Start_PAGE		0
+
+#define      LCD_DispWindow_COLUMN	320
+#define      LCD_DispWindow_PAGE	320
+
+#define      WIDTH_EN_CHAR		8
+#define      HEIGHT_EN_CHAR		16
+
+#define      CMD_Set_COLUMN		   0x2A
+#define      CMD_Set_PAGE		   0x2B
+#define      CMD_SetPixel		   0x2C
+
+
 void ILI9341_Init(void);
 void ILI9341_Reset(void);
 void ILI9341_Set_Rotation(unsigned char rotation);
-void ILI9341_Fill_Screen(unsigned int color);
 
-void ILI9341_SPI_Send_Image(uint8_t* image_array[]);
-void ILI9341_Draw_Pixel(int x, int y, unsigned int color);
-void ILI9341_Draw_Double_Pixel(int x, int y, unsigned int color1, unsigned int color2);
-void ILI9341_Draw_Circle(unsigned int x0, unsigned int y0, int r, unsigned int color, unsigned char flood);
-void ILI9341_Draw_Line(unsigned int color, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
-void ILI9341_Draw_Filled_Rectangle(unsigned int color,unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
-void ILI9341_Draw_Empty_Rectangle(unsigned int color,unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
-void ILI9341_Draw_String(unsigned int x, unsigned int y, unsigned int color, unsigned int phone, char *str, unsigned char size);
-
+void LCD_FillWindow (uint32_t usPoint, uint16_t usColor);
+void LCD_OpenWindow (uint16_t usC, uint16_t usP, uint16_t usWidth, uint16_t usHeight);
+void LCD_DrawFilledRectangle (uint16_t usC, uint16_t usP, uint16_t usWidth, uint16_t usHeight, uint16_t usColor);
+void LCD_FillScreen (uint16_t usColor);
+void LCD_DrawLine (uint16_t usC1, uint16_t usP1, uint16_t usC2, uint16_t usP2, uint16_t usColor);
+void LCD_DrawChar (uint16_t usC, uint16_t usP, const char cChar);
+void LCD_DrawString (uint16_t usC, uint16_t usP, const char * pStr);
+void LCD_DrawDot (uint16_t usC, uint16_t usP, uint16_t usColor);
+void LCD_DrawEllipse (uint16_t usC, uint16_t usP, uint16_t SR, uint16_t LR, uint16_t usColor);
+void LCD_DrawFormattedString(uint16_t x, uint16_t y, const char* fmt, ...);
+void LCD_Print(uint16_t xc, uint16_t yc, const char* fmt, ...);
+void LCD_DrawCircle(uint16_t usX_Center, uint16_t usY_Center, uint16_t usRadius, uint16_t fillColor);

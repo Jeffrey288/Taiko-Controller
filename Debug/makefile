@@ -60,8 +60,8 @@ all: main-build
 main-build: TAIKO.elf secondary-outputs
 
 # Tool invocations
-TAIKO.elf TAIKO.map: $(OBJS) $(USER_OBJS) C:\Users\pinkp\Documents\GitHub\ELEC3300-Project\TAIKO\STM32F103VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "TAIKO.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\pinkp\Documents\GitHub\ELEC3300-Project\TAIKO\STM32F103VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TAIKO.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+TAIKO.elf TAIKO.map: $(OBJS) $(USER_OBJS) C:\Users\pinkp\Documents\GitHub\TAIKO\STM32F103VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "TAIKO.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\pinkp\Documents\GitHub\TAIKO\STM32F103VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TAIKO.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
