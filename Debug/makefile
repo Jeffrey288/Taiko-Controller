@@ -9,6 +9,10 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include USB_DEVICE/Target/subdir.mk
+-include USB_DEVICE/App/subdir.mk
+-include Middlewares/ST/STM32_USB_Device_Library/Core/Src/subdir.mk
+-include Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src/subdir.mk
 -include Drivers/STM32F1xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
@@ -61,7 +65,7 @@ main-build: TAIKO.elf secondary-outputs
 
 # Tool invocations
 TAIKO.elf TAIKO.map: $(OBJS) $(USER_OBJS) C:\Users\pinkp\Documents\GitHub\TAIKO\STM32F103VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "TAIKO.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\pinkp\Documents\GitHub\TAIKO\STM32F103VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TAIKO.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "TAIKO.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\pinkp\Documents\GitHub\TAIKO\STM32F103VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TAIKO.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

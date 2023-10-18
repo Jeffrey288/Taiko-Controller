@@ -26,6 +26,9 @@ Core/Src/touch.o: ../Core/Src/touch.c ../Core/Inc/Touch.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
+ ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h \
+ ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h \
+ ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h \
  ../Core/Inc/main.h
 ../Core/Inc/Touch.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
@@ -55,4 +58,7 @@ Core/Src/touch.o: ../Core/Src/touch.c ../Core/Inc/Touch.h \
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd.h:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usb.h:
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pcd_ex.h:
 ../Core/Inc/main.h:

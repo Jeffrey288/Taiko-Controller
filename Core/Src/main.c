@@ -1,28 +1,29 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2023 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
-
+#include "drum.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,34 +69,99 @@ static void MX_ADC1_Init(void);
 /****************************************************************************************************
  *
  * LCD SCREEN
-//=========================================电�?接线================================================//
-//     LCD模�?�                STM32�?�片机
-//      VCC          接        DC5V/3.3V      //电�?
-//      GND          接          GND          //电�?地
-//=======================================液晶�?数�?�线接线==========================================//
-//本模�?�默认数�?�总线类型为SPI总线
-//     LCD模�?�                STM32�?�片机
-//    SDI(MOSI)      接          PB15         //液晶�?SPI总线数�?�写信�?�
-//    SDO(MISO)      接          PB14         //液晶�?SPI总线数�?�读信�?�，如果�?需�?读，�?�以�?接线
-//=======================================液晶�?控制线接线==========================================//
-//     LCD模�?� 					      STM32�?�片机
-//       LED         接          -          //液晶�?背光控制信�?�，如果�?需�?控制，接5V或3.3V
-//       SCK         接          PB13         //液晶�?SPI总线时钟信�?�
-//      DC/RS        接          PB10         //液晶�?数�?�/命令控制信�?�
-//       RST         接          PB12         //液晶�?�?�?控制信�?�
-//       CS          接          PB11         //液晶�?片选控制信�?�
-//=========================================触摸�?触接线=========================================//
-//如果模�?��?带触摸功能或者带有触摸功能，但是�?需�?触摸功能，则�?需�?进行触摸�?接线
-//	   LCD模�?�                STM32�?�片机
-//      T_IRQ        接          PE15         //触摸�?触摸中断信�?�
-//      T_DO         接          PE14         //触摸�?SPI总线读信�?�
-//      T_DIN        接          PE13         //触摸�?SPI总线写信�?�
-//      T_CS         接          PE12         //触摸�?片选控制信�?�
-//      T_CLK        接          PE11         //触摸�?SPI总线时钟信�?�
+ //=========================================电�?接线================================================//
+ //     LCD模�?�                STM32�?�片机
+ //      VCC          接        DC5V/3.3V      //电�?
+ //      GND          接          GND          //电�?地
+ //=======================================液晶�?数�?�线接线==========================================//
+ //本模�?�默认数�?�总线类型为SPI总线
+ //     LCD模�?�                STM32�?�片机
+ //    SDI(MOSI)      接          PB15         //液晶�?SPI总线数�?�写信�?�
+ //    SDO(MISO)      接          PB14         //液晶�?SPI总线数�?�读信�?�，如果�?需�?读，�?�以�?接线
+ //=======================================液晶�?控制线接线==========================================//
+ //     LCD模�?� 					      STM32�?�片机
+ //       LED         接          -          //液晶�?背光控制信�?�，如果�?需�?控制，接5V或3.3V
+ //       SCK         接          PB13         //液晶�?SPI总线时钟信�?�
+ //      DC/RS        接          PB10         //液晶�?数�?�/命令控制信�?�
+ //       RST         接          PB12         //液晶�?�?�?控制信�?�
+ //       CS          接          PB11         //液晶�?片选控制信�?�
+ //=========================================触摸�?触接线=========================================//
+ //如果模�?��?带触摸功能或者带有触摸功能，但是�?需�?触摸功能，则�?需�?进行触摸�?接线
+ //	   LCD模�?�                STM32�?�片机
+ //      T_IRQ        接          PE15         //触摸�?触摸中断信�?�
+ //      T_DO         接          PE14         //触摸�?SPI总线读信�?�
+ //      T_DIN        接          PE13         //触摸�?SPI总线写信�?�
+ //      T_CS         接          PE12         //触摸�?片选控制信�?�
+ //      T_CLK        接          PE11         //触摸�?SPI总线时钟信�?�
  *
-**************************************************************************************************/
+ **************************************************************************************************/
 
-uint32_t drum_sensor_values[4];
+int drum_max_val[4] = {0, 0, 0, 0};
+int drum_interrupt_start_tick = 0;
+int drum_interrupt_counts = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == &htim3) {
+		drum_interrupt_counts++;
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+		DrumUpdate();
+
+		if (HAL_GetTick() % 3000 < 10) {
+			for (int i = 0; i < 4; i++) {
+				drum_max_val[i] = 0;
+			}
+		}
+		for (int i = 0; i < 4; i++) {
+			if (drum_max_val[i] < drum_sensor_values[i]) {
+				drum_max_val[i] = drum_sensor_values[i];
+			}
+		}
+	}
+
+}
+
+
+typedef struct
+{
+	uint8_t MODIFIER;
+	uint8_t RESERVED;
+	uint8_t KEYCODE1;
+	uint8_t KEYCODE2;
+	uint8_t KEYCODE3;
+	uint8_t KEYCODE4;
+	uint8_t KEYCODE5;
+	uint8_t KEYCODE6;
+} keyboardHID;
+
+extern USBD_HandleTypeDef hUsbDeviceFS;
+keyboardHID keyboardhid = {0,0,0,0,0,0,0,0};
+
+typedef struct USB_JoystickReport_Input_t {
+  uint16_t Button; // 16 buttons; see JoystickButtons for bit mapping
+  uint8_t  HAT;    // HAT switch; one nibble w/ unused nibble
+  uint8_t  LX;     // Left  Stick X
+  uint8_t  LY;     // Left  Stick Y
+  uint8_t  RX;     // Right Stick X
+  uint8_t  RY;     // Right Stick Y
+  uint8_t  VendorSpec;
+} USB_JoystickReport_Input;
+USB_JoystickReport_Input switchhid = {0,0,0,0,0,0,0};
+
+typedef enum {
+    SWITCH_Y       = 0x01,
+    SWITCH_B       = 0x02,
+    SWITCH_A       = 0x04,
+    SWITCH_X       = 0x08,
+    SWITCH_L       = 0x10,
+    SWITCH_R       = 0x20,
+    SWITCH_ZL      = 0x40,
+    SWITCH_ZR      = 0x80,
+    SWITCH_MINUS   = 0x100,
+    SWITCH_PLUS    = 0x200,
+    SWITCH_LCLICK  = 0x400,
+    SWITCH_RCLICK  = 0x800,
+    SWITCH_HOME    = 0x1000,
+    SWITCH_CAPTURE = 0x2000,
+} JoystickButtons;
 /* USER CODE END 0 */
 
 /**
@@ -128,63 +194,100 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 	ILI9341_Init();
+	ILI9341_Set_Rotation(2);
+	LCD_FillScreen(PINK);
 	HAL_ADC_Start_DMA(&hadc1, drum_sensor_values, 4);
-
+	DrumInit();
+  	DrumCalibrate();
+//  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  	drum_interrupt_start_tick = HAL_GetTick();
+	HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
-  LCD_FillScreen(PINK);
 //  LCD_DrawFilledRectangle(0, 0, 240, 320, RED);
 
-  long last_ticks = 0;
-  long tft_last_ticks = 0;
-  long ticks = 0;
-  long num_hits = 0;
-  while (1)
-  {
+	long last_ticks = 0;
+	long tft_last_ticks = 0;
+	long ticks = 0;
+	int num_hits = 0;
+	int hit_state = 0;
+	while (1) {
 
-	  if (drum_sensor_values[0] > 300) {
-		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-		  num_hits += 1;
-	  } else {
-		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
-	  }
+//		keyboardhid.MODIFIER = 0x02;  // left Shift
+//		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
+//		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
+//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//		HAL_Delay (50);
+//
+//		keyboardhid.MODIFIER = 0x00;  // shift release
+//		keyboardhid.KEYCODE1 = 0x00;  // release key
+//		keyboardhid.KEYCODE2 = 0x00;  // release key
+//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
-	  if (HAL_GetTick() - tft_last_ticks > 100) {
+		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
+		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+		HAL_Delay (50);
 
-		  LCD_Print(0, 0, "%02ld:%02ld:%02ld.%03ld", HAL_GetTick() / (1000 * 60 * 60),
-				  HAL_GetTick() / (1000 * 60), HAL_GetTick() / 1000, HAL_GetTick() % 1000);
+		switchhid.Button = 0x00;  // shift release
+		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+		HAL_Delay (200);
 
-		  for (int i = 0; i < 4; i++) {
-			  LCD_Print(0, i+1, "Analog %d: %05ld", i, drum_sensor_values[i]);
-		  }
 
-		  LCD_Print(0, 5, "Hits: %03d", num_hits);
+//	  if (drum_sensor_values[0] > 300) {
+//		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+//		  num_hits += 1;
+//	  } else {
+//		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+//	  }
+//
+		if (HAL_GetTick() - tft_last_ticks > 30) {
 
-		  tft_last_ticks = HAL_GetTick();
-	  }
+//			__disable_irq();
+			int r = 0;
+			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1f Hz",
+					HAL_GetTick() / (1000 * 60 * 60),
+					HAL_GetTick() / (1000 * 60) % 60,
+					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
+					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000);
 
-	  if (HAL_GetTick() - last_ticks > 400) {
+			LCD_Print(0, r++, "         adc | hits");
+			for (int i = 0; i < 4; i++) {
+				LCD_Print(0, r++, "Drum %d: %4ld | %4d | %4d", i,
+						drum_sensor_values[i], drums[i].hit_count, drum_max_val[i]);
+			}
 
-		  if ((HAL_GetTick() / 400) % 2 == 0) {
-			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		  } else {
-			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		  }
+			for (int i = 0; i < 4; i++) {
+				LCD_Print(0, r++, "%lf, %lf, %lf",
+						drums[i].sensor_avg, drums[i].sensor_sd, drums[i].sensor_thresh);
+			}
 
-		  last_ticks = HAL_GetTick();
-	  }
+//			__enable_irq();
+
+			tft_last_ticks = HAL_GetTick();
+		}
+//
+//	  if (HAL_GetTick() - last_ticks > 400) {
+//
+//		  if ((HAL_GetTick() / 400) % 2 == 0) {
+//			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+//		  } else {
+//			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+//		  }
+//
+//		  last_ticks = HAL_GetTick();
+//	  }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -226,8 +329,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -360,15 +464,14 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 6500;
+  htim3.Init.Prescaler = 719;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 6000;
+  htim3.Init.Period = 49;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -380,28 +483,15 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 3000;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
-  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -489,11 +579,10 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1) {
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
