@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
 #include "drum.h"
+#include "ns_joystick.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,6 +100,7 @@ static void MX_ADC1_Init(void);
 int drum_max_val[4] = {0, 0, 0, 0};
 int drum_interrupt_start_tick = 0;
 int drum_interrupt_counts = 0;
+extern USB_JoystickReport_Input joystick_input_data;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
@@ -135,33 +137,6 @@ typedef struct
 extern USBD_HandleTypeDef hUsbDeviceFS;
 keyboardHID keyboardhid = {0,0,0,0,0,0,0,0};
 
-typedef struct USB_JoystickReport_Input_t {
-  uint16_t Button; // 16 buttons; see JoystickButtons for bit mapping
-  uint8_t  HAT;    // HAT switch; one nibble w/ unused nibble
-  uint8_t  LX;     // Left  Stick X
-  uint8_t  LY;     // Left  Stick Y
-  uint8_t  RX;     // Right Stick X
-  uint8_t  RY;     // Right Stick Y
-  uint8_t  VendorSpec;
-} USB_JoystickReport_Input;
-USB_JoystickReport_Input switchhid = {0,0,0,0,0,0,0};
-
-typedef enum {
-    SWITCH_Y       = 0x01,
-    SWITCH_B       = 0x02,
-    SWITCH_A       = 0x04,
-    SWITCH_X       = 0x08,
-    SWITCH_L       = 0x10,
-    SWITCH_R       = 0x20,
-    SWITCH_ZL      = 0x40,
-    SWITCH_ZR      = 0x80,
-    SWITCH_MINUS   = 0x100,
-    SWITCH_PLUS    = 0x200,
-    SWITCH_LCLICK  = 0x400,
-    SWITCH_RCLICK  = 0x800,
-    SWITCH_HOME    = 0x1000,
-    SWITCH_CAPTURE = 0x2000,
-} JoystickButtons;
 /* USER CODE END 0 */
 
 /**
@@ -231,12 +206,12 @@ int main(void)
 //		keyboardhid.KEYCODE2 = 0x00;  // release key
 //		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
-		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
-		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+		joystick_input_data.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
+		SendReport(&hUsbDeviceFS, &joystick_input_data);
 		HAL_Delay (50);
 
-		switchhid.Button = 0x00;  // shift release
-		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+		joystick_input_data.Button = 0;  // left Shift
+		SendReport(&hUsbDeviceFS, &joystick_input_data);
 		HAL_Delay (200);
 
 

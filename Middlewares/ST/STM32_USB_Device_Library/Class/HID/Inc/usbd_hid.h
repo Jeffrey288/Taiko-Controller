@@ -2,17 +2,25 @@
   ******************************************************************************
   * @file    usbd_hid.h
   * @author  MCD Application Team
+  * @version V2.4.2
+  * @date    11-December-2015
   * @brief   Header file for the usbd_hid_core.c file.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2015 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * <h2><center>&copy; COPYRIGHT 2015 STMicroelectronics</center></h2>
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                      www.st.com/SLA0044
+  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
+  * You may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at:
+  *
+  *        http://www.st.com/software_license_agreement_liberty_v2
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
   *
   ******************************************************************************
   */
@@ -22,7 +30,7 @@
 #define __USB_HID_H
 
 #ifdef __cplusplus
-extern "C" {
+ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
@@ -41,35 +49,39 @@ extern "C" {
 /** @defgroup USBD_HID_Exported_Defines
   * @{
   */
-#define HID_EPIN_ADDR                 0x81U
-#define HID_EPIN_SIZE                 0x04U
 
-// 34
-#define USB_HID_CONFIG_DESC_SIZ       34U
-#define USB_HID_DESC_SIZ              9U
+#define HID_EPIN_ADDR                 0x81
+//#define HID_EPIN_SIZE                 0x04
+#define HID_EPIN_SIZE                 0x40  // for Nintendo Switch
 
-// 63, 86
-#define HID_MOUSE_REPORT_DESC_SIZE    86U
+//define the OUT Endpoint
+#define HID_EPOUT_ADDR              0x02
+//#define HID_EPOUT_SIZE              0x01
+#define HID_EPOUT_SIZE              0x40    // for Nintendo Switch
 
-#define HID_DESCRIPTOR_TYPE           0x21U
-#define HID_REPORT_DESC               0x22U
+//#define USB_HID_CONFIG_DESC_SIZ       34
+#define USB_HID_CONFIG_DESC_SIZ       41    // equals
+#define USB_HID_DESC_SIZ              9     // equals
+//#define HID_CUSTOM_REPORT_DESC_SIZE    74
+#define HID_CUSTOM_REPORT_DESC_SIZE    86   // for Nintendo Switch
 
-#ifndef HID_HS_BINTERVAL
-#define HID_HS_BINTERVAL            0x07U
-#endif /* HID_HS_BINTERVAL */
+#define HID_DESCRIPTOR_TYPE           0x21  // equals
+#define HID_REPORT_DESC               0x22  // equals
 
-#ifndef HID_FS_BINTERVAL
-#define HID_FS_BINTERVAL            0x0AU
-#endif /* HID_FS_BINTERVAL */
+#define HID_HS_BINTERVAL               0x07   // ok?
+//#define HID_FS_BINTERVAL               0x0A
+#define HID_FS_BINTERVAL               0x05   // for Nintendo Switch
+//#define HID_POLLING_INTERVAL           0x0A
+#define HID_POLLING_INTERVAL           0x05   // ok?
 
-#define HID_REQ_SET_PROTOCOL          0x0BU
-#define HID_REQ_GET_PROTOCOL          0x03U
+#define HID_REQ_SET_PROTOCOL          0x0B  // equals
+#define HID_REQ_GET_PROTOCOL          0x03  // equals
 
-#define HID_REQ_SET_IDLE              0x0AU
-#define HID_REQ_GET_IDLE              0x02U
+#define HID_REQ_SET_IDLE              0x0A  // equals
+#define HID_REQ_GET_IDLE              0x02  // equals
 
-#define HID_REQ_SET_REPORT            0x09U
-#define HID_REQ_GET_REPORT            0x01U
+#define HID_REQ_SET_REPORT            0x09  // equals
+#define HID_REQ_GET_REPORT            0x01  // equals
 /**
   * @}
   */
@@ -121,11 +133,11 @@ extern USBD_ClassTypeDef  USBD_HID;
 /** @defgroup USB_CORE_Exported_Functions
   * @{
   */
-uint8_t USBD_HID_SendReport(USBD_HandleTypeDef *pdev,
-                            uint8_t *report,
-                            uint16_t len);
+uint8_t USBD_HID_SendReport (USBD_HandleTypeDef *pdev,
+                                 uint8_t *report,
+                                 uint16_t len);
 
-uint32_t USBD_HID_GetPollingInterval(USBD_HandleTypeDef *pdev);
+uint32_t USBD_HID_GetPollingInterval (USBD_HandleTypeDef *pdev);
 
 /**
   * @}

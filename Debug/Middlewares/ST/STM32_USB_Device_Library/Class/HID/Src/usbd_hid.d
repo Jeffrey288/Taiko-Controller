@@ -37,7 +37,10 @@ Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src/usbd_hid.o: \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
+ ../USB_DEVICE/App/usbd_desc.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
+ ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
+ ../USB_DEVICE/App/usb_device.h ../Core/Inc/ns_joystick.h
 ../Middlewares/ST/STM32_USB_Device_Library/Class/HID/Inc/usbd_hid.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
@@ -76,4 +79,8 @@ Middlewares/ST/STM32_USB_Device_Library/Class/HID/Src/usbd_hid.o: \
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
+../USB_DEVICE/App/usbd_desc.h:
+../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h:
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h:
+../USB_DEVICE/App/usb_device.h:
+../Core/Inc/ns_joystick.h:
