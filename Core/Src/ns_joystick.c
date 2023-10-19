@@ -1,6 +1,6 @@
 #include "ns_joystick.h"
 
-USB_JoystickReport_Input joystick_input_data;
+USB_JoystickReport_Input joystick_input_data = {0, 0x08, 0x80, 0x80, 0x80, 0x80, 0};
 USB_JoystickReport_Output joystick_output;
 
 void ResetReport(USB_JoystickReport_Input* report) {

@@ -7,12 +7,13 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+  * All rights reserved.</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
@@ -68,11 +69,11 @@
 /*---------- -----------*/
 #define USBD_MAX_STR_DESC_SIZ     512
 /*---------- -----------*/
+#define USBD_SUPPORT_USER_STRING     0
+/*---------- -----------*/
 #define USBD_DEBUG_LEVEL     0
 /*---------- -----------*/
 #define USBD_SELF_POWERED     1
-/*---------- -----------*/
-#define HID_FS_BINTERVAL     0xA
 
 /****************************************/
 /* #define for FS and HS identification */
@@ -173,3 +174,4 @@ void USBD_static_free(void *p);
 
 #endif /* __USBD_CONF__H__ */
 
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
