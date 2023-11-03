@@ -1,10 +1,12 @@
 #include "drum.h"
 #include "math.h"
 
+FATFS fs;
+
 uint32_t drum_sensor_values[4];
 DrumStruct drums[4];
 DrumOutputDevice drum_output_device;
-DrumOutputCallback drum_output_callback;
+//DrumOutputCallback drum_output_callback;
 
 void DrumOutputDefault(DrumType type) {
 	drums[type].hit_count++;
@@ -13,7 +15,7 @@ void DrumOutputDefault(DrumType type) {
 void DrumInit() {
 
 	drum_output_device = DRUM_OUTPUT_NONE;
-	drum_output_callback = &DrumOutputDefault;
+//	drum_output_callback = &DrumOutputDefault;
 	for (int i = 0; i < NUM_DRUMS; i++) {
 		drums[i].type = i;
 		drums[i].state = DRUM_IDLE;

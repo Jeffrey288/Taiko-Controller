@@ -2,6 +2,9 @@
 #define __DRUM_H
 
 #include <stdint.h>
+#include "fatfs.h"
+
+extern FATFS fs;
 
 #define DRUM_CALIBRATION_SAMPLE_NUM 300
 #define DRUM_COOLDOWN_LENGTH 2
@@ -41,14 +44,14 @@ typedef struct {
 	uint32_t sensor_max;
 	double sensor_avg;
 	double sensor_sd;
-	double sensor_thresh;
+	uint32_t sensor_thresh;
 } DrumStruct;
 
-typedef void (*DrumOutputCallback) (DrumType);
+//typedef void (*DrumOutputCallback) (DrumType);
 extern uint32_t drum_sensor_values[4];
 extern DrumStruct drums[4];
 extern DrumOutputDevice drum_output_device;
-extern DrumOutputCallback drum_output_callback;
+//extern DrumOutputCallback drum_output_callback;
 
 void DrumInit();
 void DrumCalibrate();
@@ -62,9 +65,9 @@ static inline void DrumUpdate() {
 		if (*(drum->sensor_value_pt) > drum->sensor_thresh) {
 			if (drum->state != DRUM_HIT) {
 				drum->last_tick = HAL_GetTick();
-				if (drum->state == DRUM_IDLE) {
-					drum_output_callback(i);
-				}
+//				if (drum->state == DRUM_IDLE) {
+//					drum_output_callback(i);
+//				}
 				drum->state = DRUM_HIT;
 			}
 		} else {

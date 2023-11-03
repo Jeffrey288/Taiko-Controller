@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -44,9 +45,19 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+DAC_HandleTypeDef hdac;
+DMA_HandleTypeDef hdma_dac_ch1;
+DMA_HandleTypeDef hdma_dac_ch2;
+
+I2C_HandleTypeDef hi2c1;
+
+SD_HandleTypeDef hsd;
+
 SPI_HandleTypeDef hspi2;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 
@@ -59,6 +70,11 @@ static void MX_DMA_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_SDIO_SD_Init(void);
+static void MX_DAC_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -117,6 +133,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		}
 	}
 
+	if (htim == &htim4) {
+
+	}
+
 }
 
 
@@ -162,6 +182,51 @@ typedef enum {
     SWITCH_HOME    = 0x1000,
     SWITCH_CAPTURE = 0x2000,
 } JoystickButtons;
+
+typedef enum {
+	MUSIC_UNINITED,
+	MUSIC_PAUSED,
+	MUSIC_PLAYING,
+} MusicState;
+
+
+// ----------- AUDIO PLAYBACK -------------
+#define AUDIO_FREQ		48000		// TIMER SETTING
+#define SYSCLK_FREQ		72000000	// SYSCLOCK FREQUENCY
+#define AUDIO_PRECOMP 	500		// precompute how many samples per interrupt
+#define AUDIO_BLOCKS	5		// how many audio blocks are there for DAC DMA
+#define AUDIO_INSTANCES_MAX  10	 // at most how many audio instance can be played at once
+#define	AUDIO_MASTER_FREQ	AUDIO_FREQ
+#define AUDIO_SLAVE_FREQ	96 	// (AUDIO_FREQ / AUDIO_PRECOMP)
+//#define AUDIO_PRECOMP_PERIOD
+typedef enum {
+	DRUM_DON,
+	DRUM_KA,
+} DrumSound;
+
+typedef struct {
+	DrumSound drum_sound;
+	uint32_t audio_index;
+	uint32_t audio_length;
+} AudioInstance;
+
+AudioInstance audio_instances[AUDIO_INSTANCES_MAX];
+uint16_t audio_instances_num = 0;
+
+typedef struct {
+	// the precomputed mix buffer that the DMA is going to send
+	uint16_t out[AUDIO_PRECOMP * AUDIO_BLOCKS];
+	uint16_t *curr;		// current position
+	uint16_t *first;	// first position in the out array
+
+	uint16_t toWrite;	// which block to write
+	uint32_t channel;	// which DMA channel to use
+	uint8_t onFlag;		// whether this audio channel is being used
+} AudioChannel;
+
+AudioChannel audio_channel_left;
+AudioChannel audio_channel_right;
+
 /* USER CODE END 0 */
 
 /**
@@ -195,13 +260,64 @@ int main(void)
   MX_TIM3_Init();
   MX_ADC1_Init();
   MX_USB_DEVICE_Init();
+  MX_SDIO_SD_Init();
+  MX_FATFS_Init();
+  MX_DAC_Init();
+  MX_I2C1_Init();
+  MX_TIM2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+
+//  audio_channel_left.curr = audio_channel_left.first = audio_channel_left.out;
+//  audio_channel_left.toWrite = 0;
+//  audio_channel_right.curr = audio_channel_right.first = audio_channel_right.out;
+//  audio_channel_right.toWrite = 0;
+//
+//  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)audio_channel_left.out, 128, DAC_ALIGN_12B_R);
+//  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*)audio_channel_right.out, 128, DAC_ALIGN_12B_R);
+//  HAL_TIM_Base_Start(&htim4);
+//  HAL_TIM_Base_Start(&htim2);
+
+
 	ILI9341_Init();
 	ILI9341_Set_Rotation(2);
 	LCD_FillScreen(PINK);
 	HAL_ADC_Start_DMA(&hadc1, drum_sensor_values, 4);
 	DrumInit();
-  	DrumCalibrate();
+
+  	// Setting the clock divider somehow helps :D
+  	FRESULT fresult = f_mount(&fs, "/", 1);
+  	if (fresult != FR_OK) {
+  		LCD_Print(0, 10, "Error: f_mount (%d)", fresult); while (1);
+  	}
+
+  	FIL file;
+  	uint16_t temp;
+  	fresult = f_open(&file, "drum.cfg", FA_READ | FA_WRITE);
+  	if (fresult == FR_OK) {
+  		uint32_t buff[5];
+  		fresult = f_read(&file, buff, 5 * 4, &temp);
+  		if (buff[0] + buff[1] + buff[2] + buff[3] == buff[4]) {
+  			for (int i = 0; i < 4; i++) drums[i].sensor_thresh = buff[i];
+  		} else {
+  			DrumCalibrate();
+  			uint32_t buff[5] = {drums[0].sensor_thresh, drums[1].sensor_thresh, drums[2].sensor_thresh, drums[3].sensor_thresh,
+					drums[0].sensor_thresh + drums[1].sensor_thresh + drums[2].sensor_thresh + drums[3].sensor_thresh};
+  			fresult = f_write(&file, buff, 5 * 4, &temp);
+  		}
+  		LCD_Print(0, 10, "Have file, reading... %d", fresult);
+  	} else if (fresult == FR_NO_FILE) {
+  		fresult = f_open(&file, "drum.cfg", FA_WRITE | FA_CREATE_NEW);
+  		DrumCalibrate();
+  		uint32_t buff[5] = {drums[0].sensor_thresh, drums[1].sensor_thresh, drums[2].sensor_thresh, drums[3].sensor_thresh,
+  				drums[0].sensor_thresh + drums[1].sensor_thresh + drums[2].sensor_thresh + drums[3].sensor_thresh};
+  		fresult = f_write(&file, buff, 5 * 4, &temp);
+  		LCD_Print(0, 10, "No file, calibrating... %d", fresult);
+  	} else {
+  		LCD_Print(0, 10, "Error: f_open (%d)", fresult); while (1);
+  	}
+  	f_close(&file);
+
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   	drum_interrupt_start_tick = HAL_GetTick();
 	HAL_TIM_Base_Start_IT(&htim3);
@@ -264,7 +380,7 @@ int main(void)
 			}
 
 			for (int i = 0; i < 4; i++) {
-				LCD_Print(0, r++, "%lf, %lf, %lf",
+				LCD_Print(0, r++, "%lf, %lf, %d",
 						drums[i].sensor_avg, drums[i].sensor_sd, drums[i].sensor_thresh);
 			}
 
@@ -413,6 +529,115 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief DAC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DAC_Init(void)
+{
+
+  /* USER CODE BEGIN DAC_Init 0 */
+
+  /* USER CODE END DAC_Init 0 */
+
+  DAC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN DAC_Init 1 */
+
+  /* USER CODE END DAC_Init 1 */
+
+  /** DAC Initialization
+  */
+  hdac.Instance = DAC;
+  if (HAL_DAC_Init(&hdac) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT1 config
+  */
+  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** DAC channel OUT2 config
+  */
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DAC_Init 2 */
+
+  /* USER CODE END DAC_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief SDIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SDIO_SD_Init(void)
+{
+
+  /* USER CODE BEGIN SDIO_Init 0 */
+
+  /* USER CODE END SDIO_Init 0 */
+
+  /* USER CODE BEGIN SDIO_Init 1 */
+
+  /* USER CODE END SDIO_Init 1 */
+  hsd.Instance = SDIO;
+  hsd.Init.ClockEdge = SDIO_CLOCK_EDGE_RISING;
+  hsd.Init.ClockBypass = SDIO_CLOCK_BYPASS_DISABLE;
+  hsd.Init.ClockPowerSave = SDIO_CLOCK_POWER_SAVE_DISABLE;
+  hsd.Init.BusWide = SDIO_BUS_WIDE_1B;
+  hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_DISABLE;
+  hsd.Init.ClockDiv = 100;
+  /* USER CODE BEGIN SDIO_Init 2 */
+
+  /* USER CODE END SDIO_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -447,6 +672,51 @@ static void MX_SPI2_Init(void)
   /* USER CODE BEGIN SPI2_Init 2 */
 
   /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 1632;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -496,6 +766,52 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_SlaveConfigTypeDef sSlaveConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 88;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_TRIGGER;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -503,11 +819,18 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA1_CLK_ENABLE();
+  __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA2_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Channel3_IRQn);
+  /* DMA2_Channel4_5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Channel4_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Channel4_5_IRQn);
 
 }
 
@@ -525,6 +848,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|LED_Pin, GPIO_PIN_RESET);
