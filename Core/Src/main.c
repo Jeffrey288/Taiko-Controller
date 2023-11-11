@@ -104,23 +104,91 @@ extern USB_JoystickReport_Input joystick_input_data;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-		DrumUpdate();
 
-		if (HAL_GetTick() % 3000 < 10) {
-			for (int i = 0; i < 4; i++) {
-				drum_max_val[i] = 0;
-			}
+		if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_0)) {
+			joystick_input_data.Button = SWITCH_A;  // left Shift
+		} else {
+			joystick_input_data.Button = 0;
 		}
-		for (int i = 0; i < 4; i++) {
-			if (drum_max_val[i] < drum_sensor_values[i]) {
-				drum_max_val[i] = drum_sensor_values[i];
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_0));
+		SendReport(&hUsbDeviceFS, &joystick_input_data);
+//		DrumUpdate();
+//
+//		if (HAL_GetTick() % 3000 < 10) {
+//			for (int i = 0; i < 4; i++) {
+//				drum_max_val[i] = 0;
+//			}
+//		}
+//		for (int i = 0; i < 4; i++) {
+//			if (drum_max_val[i] < drum_sensor_values[i]) {
+//				drum_max_val[i] = drum_sensor_values[i];
+//			}
+//		}
+	} else if (htim == &htim4) {
+
+	}
+}
+
+#define AUDIO_BUFF_LENGTH 500
+#define MAX_TRACKS 10
+union {
+	uint16_t u;
+	int16_t i;
+} audio_buff[AUDIO_BUFF_LENGTH];
+int16_t sample_sum_buff[AUDIO_BUFF_LENGTH];
+typedef struct {
+	uint16_t* buff;
+	uint16_t length;
+	uint16_t pos;
+} AudioTrack;
+AudioTrack audio_tracks[MAX_TRACKS];
+int num_tracks = 0;
+
+void PrecomputeMix() {
+
+	for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
+		sample_sum_buff[i].u = 0;
+	}
+
+	if (num_tracks <= 0) {
+		HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+	} else {
+		HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+
+		int j = 0;
+		while (j < num_tracks) {
+			uint16_t* buff = audio_track[j].buff;
+			uint16_t pos = audio_tracks[j].pos;
+			uint16_t len = audio_tracks[j].length;
+			uint16_t min = (len - pos > AUDIO_BUFF_LENGTH) ? AUDIO_BUFF_LENGTH : len - pos;
+			for (int i = 0; i < min; i++) {
+				sample_sum_buff[i] += buff[pos + i] / 3;
 			}
+			pos += min;
+			if (pos >= len) {
+				RemoveTrack(j);
+			} else {
+				j++; // if you understand how RemoveTrack works
+			}
+			audio_tracks[j].pos = pos;
+		}
+
+		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
+			sample_sum_buff[i].u = -sample_sum_buff[i].i + 32768;
 		}
 	}
 
 }
 
+void AddTrack(AudioTrack track) {
+	if (num_tracks >= MAX_TRACKS) return;
+	audio_tracks[num_tracks++] = track;
+}
+
+void RemoveTrack(uint16_t index) {
+	if (num_tracks <= 0) return;
+	audio_tracks[index] = audio_tracks[--num_tracks];
+}
 
 typedef struct
 {
@@ -206,7 +274,7 @@ int main(void)
 //		keyboardhid.KEYCODE2 = 0x00;  // release key
 //		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
-		joystick_input_data.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
+		joystick_input_data.Button = SWITCH_CAPTURE;  // left Shift
 		SendReport(&hUsbDeviceFS, &joystick_input_data);
 		HAL_Delay (50);
 
@@ -214,13 +282,13 @@ int main(void)
 		SendReport(&hUsbDeviceFS, &joystick_input_data);
 		HAL_Delay (200);
 
-
 //	  if (drum_sensor_values[0] > 300) {
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 //		  num_hits += 1;
 //	  } else {
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 //	  }
+
 //
 		if (HAL_GetTick() - tft_last_ticks > 30) {
 
@@ -540,6 +608,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PE0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 }
 
