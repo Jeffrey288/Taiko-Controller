@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
 #include "drum.h"
+#include "kadon.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -115,26 +116,35 @@ static void MX_TIM4_Init(void);
 int drum_max_val[4] = {0, 0, 0, 0};
 int drum_interrupt_start_tick = 0;
 int drum_interrupt_counts = 0;
+
+uint32_t audio_interrupt_counts = 0;
+uint32_t audio_interrupt_start_tick = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-		DrumUpdate();
-
-		if (HAL_GetTick() % 3000 < 10) {
-			for (int i = 0; i < 4; i++) {
-				drum_max_val[i] = 0;
-			}
-		}
-		for (int i = 0; i < 4; i++) {
-			if (drum_max_val[i] < drum_sensor_values[i]) {
-				drum_max_val[i] = drum_sensor_values[i];
-			}
-		}
+//		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+//		DrumUpdate();
+//
+//		if (HAL_GetTick() % 3000 < 10) {
+//			for (int i = 0; i < 4; i++) {
+//				drum_max_val[i] = 0;
+//			}
+//		}
+//		for (int i = 0; i < 4; i++) {
+//			if (drum_max_val[i] < drum_sensor_values[i]) {
+//				drum_max_val[i] = drum_sensor_values[i];
+//			}
+//		}
 	}
 
 	if (htim == &htim4) {
+//		audio_interrupt_counts++;
+//		PrecomputeMix();
+	}
 
+	if (htim == &htim2) {
+		audio_interrupt_counts++;
+	//		PrecomputeMix();
 	}
 
 }
@@ -193,9 +203,8 @@ typedef enum {
 // ----------- AUDIO PLAYBACK -------------
 #define AUDIO_FREQ		48000		// TIMER SETTING
 #define SYSCLK_FREQ		72000000	// SYSCLOCK FREQUENCY
-#define AUDIO_PRECOMP 	500		// precompute how many samples per interrupt
-#define AUDIO_BLOCKS	5		// how many audio blocks are there for DAC DMA
-#define AUDIO_INSTANCES_MAX  10	 // at most how many audio instance can be played at once
+#define AUDIO_BUFF_LENGTH 500
+#define MAX_TRACKS 	10
 #define	AUDIO_MASTER_FREQ	AUDIO_FREQ
 #define AUDIO_SLAVE_FREQ	96 	// (AUDIO_FREQ / AUDIO_PRECOMP)
 //#define AUDIO_PRECOMP_PERIOD
@@ -204,28 +213,71 @@ typedef enum {
 	DRUM_KA,
 } DrumSound;
 
+union {
+	uint16_t u;
+	int16_t i;
+} audio_buff[AUDIO_BUFF_LENGTH];
 typedef struct {
-	DrumSound drum_sound;
-	uint32_t audio_index;
-	uint32_t audio_length;
-} AudioInstance;
+	int16_t* buff;
+	uint16_t length;
+	uint16_t pos;
+} AudioTrack;
+AudioTrack audio_tracks[MAX_TRACKS];
+int num_tracks = 0;
+int audio_dma_on = 0;
 
-AudioInstance audio_instances[AUDIO_INSTANCES_MAX];
-uint16_t audio_instances_num = 0;
+void AddDrum(DrumSound sound) {
+	AddTrack((AudioTrack) {
+		.buff = drum_sounds[sound],
+		.length = drum_sound_lengths[sound],
+		.pos = 0
+	});
+}
 
-typedef struct {
-	// the precomputed mix buffer that the DMA is going to send
-	uint16_t out[AUDIO_PRECOMP * AUDIO_BLOCKS];
-	uint16_t *curr;		// current position
-	uint16_t *first;	// first position in the out array
+DAC_HandleTypeDef hdac;
+void PrecomputeMix() {
 
-	uint16_t toWrite;	// which block to write
-	uint32_t channel;	// which DMA channel to use
-	uint8_t onFlag;		// whether this audio channel is being used
-} AudioChannel;
+	memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
 
-AudioChannel audio_channel_left;
-AudioChannel audio_channel_right;
+	if (num_tracks <= 0) {
+		if (audio_dma_on) HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+	} else {
+		if (!audio_dma_on) HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+
+		int j = 0;
+		while (j < num_tracks) {
+			uint16_t* buff = audio_tracks[j].buff;
+			uint16_t pos = audio_tracks[j].pos;
+			uint16_t len = audio_tracks[j].length;
+			uint16_t min = (len - pos > AUDIO_BUFF_LENGTH) ? AUDIO_BUFF_LENGTH : len - pos;
+			for (int i = 0; i < min; i++) {
+				audio_buff[i].i += buff[pos + i] / 3;
+			}
+			pos += min;
+			audio_tracks[j].pos = pos;
+			if (pos >= len) {
+				RemoveTrack(j);
+			} else {
+				j++; // if you understand how RemoveTrack works
+			}
+		}
+
+		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
+			audio_buff[i].u = -audio_buff[i].i + 32768;
+		}
+	}
+
+}
+
+void AddTrack(AudioTrack track) {
+	if (num_tracks >= MAX_TRACKS) return;
+	audio_tracks[num_tracks++] = track;
+}
+
+void RemoveTrack(uint16_t index) {
+	if (num_tracks <= 0) return;
+	audio_tracks[index] = audio_tracks[--num_tracks];
+}
 
 /* USER CODE END 0 */
 
@@ -319,12 +371,32 @@ int main(void)
   	f_close(&file);
 
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  	drum_interrupt_start_tick = HAL_GetTick();
 	HAL_TIM_Base_Start_IT(&htim3);
+  	drum_interrupt_start_tick = HAL_GetTick();
+//	HAL_TIM_Base_Start(&htim2);
+//	__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
+//	HAL_TIM_Base_Start_IT(&htim4);
+	HAL_TIM_Base_Start_IT(&htim2);
+  	audio_interrupt_start_tick = HAL_GetTick();
+//	HAL_TIM_Base_Start(&htim4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+//	uint16_t Wave_LUT[128] = {
+//	    2048, 2149, 2250, 2350, 2450, 2549, 2646, 2742, 2837, 2929, 3020, 3108, 3193, 3275, 3355,
+//	    3431, 3504, 3574, 3639, 3701, 3759, 3812, 3861, 3906, 3946, 3982, 4013, 4039, 4060, 4076,
+//	    4087, 4094, 4095, 4091, 4082, 4069, 4050, 4026, 3998, 3965, 3927, 3884, 3837, 3786, 3730,
+//	    3671, 3607, 3539, 3468, 3394, 3316, 3235, 3151, 3064, 2975, 2883, 2790, 2695, 2598, 2500,
+//	    2400, 2300, 2199, 2098, 1997, 1896, 1795, 1695, 1595, 1497, 1400, 1305, 1212, 1120, 1031,
+//	    944, 860, 779, 701, 627, 556, 488, 424, 365, 309, 258, 211, 168, 130, 97,
+//	    69, 45, 26, 13, 4, 0, 1, 8, 19, 35, 56, 82, 113, 149, 189,
+//	    234, 283, 336, 394, 456, 521, 591, 664, 740, 820, 902, 987, 1075, 1166, 1258,
+//	    1353, 1449, 1546, 1645, 1745, 1845, 1946, 2047
+//	};
+//	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+//	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)Wave_LUT, 128, DAC_ALIGN_12B_R);
 
 
 //  LCD_DrawFilledRectangle(0, 0, 240, 320, RED);
@@ -347,13 +419,13 @@ int main(void)
 //		keyboardhid.KEYCODE2 = 0x00;  // release key
 //		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
-		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
-		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
-		HAL_Delay (50);
-
-		switchhid.Button = 0x00;  // shift release
-		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
-		HAL_Delay (200);
+//		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
+//		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+//		HAL_Delay (50);
+//
+//		switchhid.Button = 0x00;  // shift release
+//		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
+//		HAL_Delay (200);
 
 
 //	  if (drum_sensor_values[0] > 300) {
@@ -363,7 +435,9 @@ int main(void)
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 //	  }
 //
-		if (HAL_GetTick() - tft_last_ticks > 30) {
+		if (HAL_GetTick() - tft_last_ticks > 20) {
+
+			AddDrum(HAL_GetTick() % 2);
 
 //			__disable_irq();
 			int r = 0;
@@ -372,17 +446,19 @@ int main(void)
 					HAL_GetTick() / (1000 * 60) % 60,
 					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
 					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000);
+			LCD_Print(0, r++, "AUD: %10d, %6.1f", audio_interrupt_counts,
+					(float) audio_interrupt_counts / (HAL_GetTick() - audio_interrupt_start_tick + 1) * 1000);
 
-			LCD_Print(0, r++, "         adc | hits");
-			for (int i = 0; i < 4; i++) {
-				LCD_Print(0, r++, "Drum %d: %4ld | %4d | %4d", i,
-						drum_sensor_values[i], drums[i].hit_count, drum_max_val[i]);
-			}
+//			LCD_Print(0, r++, "         adc | hits");
+//			for (int i = 0; i < 2; i++) {
+//				LCD_Print(0, r++, "Drum %d: %4ld | %4d | %4d", i,
+//						drum_sensor_values[i], drums[i].hit_count, drum_max_val[i]);
+//			}
 
-			for (int i = 0; i < 4; i++) {
-				LCD_Print(0, r++, "%lf, %lf, %d",
-						drums[i].sensor_avg, drums[i].sensor_sd, drums[i].sensor_thresh);
-			}
+//			for (int i = 0; i < 4; i++) {
+//				LCD_Print(0, r++, "%lf, %lf, %d",
+//						drums[i].sensor_avg, drums[i].sensor_sd, drums[i].sensor_thresh);
+//			}
 
 //			__enable_irq();
 
@@ -694,9 +770,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 1632;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
+  htim2.Init.Period = 1499;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -784,9 +860,9 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 88;
+  htim4.Init.Prescaler = 0;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 65535;
+  htim4.Init.Period = 0;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -794,7 +870,7 @@ static void MX_TIM4_Init(void)
     Error_Handler();
   }
   sSlaveConfig.SlaveMode = TIM_SLAVEMODE_TRIGGER;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR1;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
