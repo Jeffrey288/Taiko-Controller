@@ -333,18 +333,19 @@ DAC_HandleTypeDef hdac;
 int pos = 0;
 void PrecomputeMix() {
 
-	if (num_tracks <= 0) {
-		if (audio_dma_on) HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
-		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
-	} else {
-		if (!audio_dma_on) HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+//	if (num_tracks <= 0) {
+//		if (audio_dma_on) HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+//		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
+//	} else {
+//		if (!audio_dma_on) HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
 
 		// trying to just play don
 
 		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
-			audio_buff[i].u = (int16_t) (don[pos]) / 4 + 32768;
+//			audio_buff[i].u = (int16_t) (don[pos]) / 4 + 32768;
+			audio_buff[i].u = ka[pos];
 //			audio_buff[2 * i + 1].u = don_signed[pos] / 4 + 32768;
-			pos = (pos + 1) % don_length;
+			pos = (pos + 1) % ka_length;
 		}
 
 //		int j = 0;
@@ -369,7 +370,7 @@ void PrecomputeMix() {
 //		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
 //			audio_buff[i].u = -audio_buff[i].i + 32768;
 //		}
-	}
+//	}
 
 }
 
@@ -480,11 +481,12 @@ int main(void)
   	f_close(&file);
 
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  	for (int i = 0; i < 23239; i++) {
-  		don[i] = (int32_t) (((int16_t*) don)[i]) / 3 + 32768;
+  	for (int i = 0; i < ka_length; i++) {
+  		ka[i] = (int32_t) (((int16_t*) ka)[i]) / 3 + 32768;
   	}
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)don, 23239, DAC_ALIGN_12B_L);
+//	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)don, 23239, DAC_ALIGN_12B_L);
+	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
 
 	HAL_TIM_Base_Start_IT(&htim3);
   	drum_interrupt_start_tick = HAL_GetTick();
@@ -544,7 +546,7 @@ int main(void)
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
 //		HAL_Delay (200);
 
-		LCD_Print(0, 0, "%4ld", drum_sensor_values[0]);
+		LCD_Print(0, 1, "%4ld, %6d", drum_sensor_values[0], pos);
 
 //	  if (drum_sensor_values[0] > 300) {
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
