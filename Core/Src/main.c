@@ -333,20 +333,37 @@ DAC_HandleTypeDef hdac;
 int pos = 0;
 void PrecomputeMix() {
 
-//	if (num_tracks <= 0) {
-//		if (audio_dma_on) HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
-//		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
-//	} else {
-//		if (!audio_dma_on) HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+	if (num_tracks <= 0) {
+		if (audio_dma_on) {
+			HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+			audio_dma_on = 0;
+		}
+		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
+	} else {
+		if (!audio_dma_on) {
+			// Resynchronize the timer
+			HAL_TIM_Base_Stop(&htim2);
+			HAL_TIM_Base_Stop(&htim4);
+
+			HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+			TIM2->CNT = 0;
+			TIM4->CNT = 0;
+
+			HAL_TIM_Base_Start(&htim2);
+			__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
+			HAL_TIM_Base_Start_IT(&htim4);
+
+			audio_dma_on = 1;
+		}
 
 		// trying to just play don
-
 		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
 //			audio_buff[i].u = (int16_t) (don[pos]) / 4 + 32768;
 			audio_buff[i].u = ka[pos];
 //			audio_buff[2 * i + 1].u = don_signed[pos] / 4 + 32768;
 			pos = (pos + 1) % ka_length;
 		}
+
 
 //		int j = 0;
 //		while (j < num_tracks) {
@@ -370,7 +387,7 @@ void PrecomputeMix() {
 //		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
 //			audio_buff[i].u = -audio_buff[i].i + 32768;
 //		}
-//	}
+	}
 
 }
 
@@ -426,16 +443,6 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
-//  audio_channel_left.curr = audio_channel_left.first = audio_channel_left.out;
-//  audio_channel_left.toWrite = 0;
-//  audio_channel_right.curr = audio_channel_right.first = audio_channel_right.out;
-//  audio_channel_right.toWrite = 0;
-//
-//  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)audio_channel_left.out, 128, DAC_ALIGN_12B_R);
-//  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*)audio_channel_right.out, 128, DAC_ALIGN_12B_R);
-//  HAL_TIM_Base_Start(&htim4);
-//  HAL_TIM_Base_Start(&htim2);
-
 	HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
 	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
 	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
@@ -487,6 +494,7 @@ int main(void)
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 //	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)don, 23239, DAC_ALIGN_12B_L);
 	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
+	audio_dma_on = 1;
 
 	HAL_TIM_Base_Start_IT(&htim3);
   	drum_interrupt_start_tick = HAL_GetTick();
@@ -497,7 +505,7 @@ int main(void)
 
   	HAL_TIM_Base_Start_IT(&htim4);
 	mix_interrupt_start_tick = HAL_GetTick();
-//	HAL_TIM_Base_Start(&htim4);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
