@@ -119,6 +119,8 @@ int drum_interrupt_counts = 0;
 
 uint32_t audio_interrupt_counts = 0;
 uint32_t audio_interrupt_start_tick = 0;
+uint32_t mix_interrupt_counts = 0;
+uint32_t mix_interrupt_start_tick = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
@@ -137,16 +139,93 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 //		}
 	}
 
-	if (htim == &htim4) {
-//		audio_interrupt_counts++;
-//		PrecomputeMix();
+	else if (htim == &htim4) {
+		mix_interrupt_counts++;
+		PrecomputeMix();
 	}
 
-	if (htim == &htim2) {
-		audio_interrupt_counts++;
-	//		PrecomputeMix();
-	}
 
+}
+
+
+
+#define BTN_PAD_R1_PORT	GPIOE
+#define BTN_PAD_R1_PIN	GPIO_PIN_0
+#define BTN_PAD_R2_PORT GPIOE
+#define BTN_PAD_R2_PIN 	GPIO_PIN_1
+#define BTN_PAD_R3_PORT	GPIOE
+#define BTN_PAD_R3_PIN 	GPIO_PIN_2
+#define BTN_PAD_R4_PORT GPIOE
+#define BTN_PAD_R4_PIN	GPIO_PIN_3
+#define BTN_PAD_C1_PORT GPIOE
+#define BTN_PAD_C1_PIN	GPIO_PIN_4
+#define BTN_PAD_C2_PORT	GPIOE
+#define BTN_PAD_C2_PIN	GPIO_PIN_5
+#define BTN_PAD_C3_PORT	GPIOE
+#define BTN_PAD_C3_PIN	GPIO_PIN_6
+#define BTN_PAD_C4_PORT	GPIOC
+#define BTN_PAD_C4_PIN	GPIO_PIN_13
+
+GPIO_InitTypeDef GPIO_InitStructPrivate = {0};
+uint32_t previousMillis = 0;
+uint32_t currentMillis = 0;
+uint16_t keyPressed = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  currentMillis = HAL_GetTick();
+  keyPressed = 0;
+  if (currentMillis - previousMillis > 10) {
+
+	// Change this if the R pins are not the same
+    GPIO_InitStructPrivate.Pin = BTN_PAD_R1_PIN|BTN_PAD_R2_PIN|BTN_PAD_R3_PIN|BTN_PAD_R4_PIN;
+    GPIO_InitStructPrivate.Mode = GPIO_MODE_INPUT;
+//    GPIO_InitStructPrivate.Pull = GPIO_NOPULL;
+//    GPIO_InitStructPrivate.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(BTN_PAD_R1_PORT, &GPIO_InitStructPrivate);
+
+    HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
+	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
+	HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 0);
+	if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN)) keyPressed = 1;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN)) keyPressed = 5;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN)) keyPressed = 9;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN)) keyPressed = 13;
+
+	HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 0);
+	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
+	if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN)) keyPressed = 2;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN)) keyPressed = 6;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN)) keyPressed = 10;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN)) keyPressed = 14;
+
+	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
+	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
+	if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN)) keyPressed = 3;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN)) keyPressed = 7;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN)) keyPressed = 11;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN)) keyPressed = 15;
+
+	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
+	HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
+	if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN)) keyPressed = 4;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN)) keyPressed = 8;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN)) keyPressed = 12;
+	if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN)) keyPressed = 16;
+
+	HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
+
+    GPIO_InitStructPrivate.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStructPrivate.Pull = GPIO_PULLDOWN;
+    HAL_GPIO_Init(BTN_PAD_R1_PORT, &GPIO_InitStructPrivate);
+    previousMillis = currentMillis;
+
+    LCD_Print(0, 6, "BTN: %10d, %2d, %2d", currentMillis, keyPressed, GPIO_Pin);
+
+  }
 }
 
 
@@ -235,36 +314,45 @@ void AddDrum(DrumSound sound) {
 }
 
 DAC_HandleTypeDef hdac;
+int pos = 0;
 void PrecomputeMix() {
-
-	memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
 
 	if (num_tracks <= 0) {
 		if (audio_dma_on) HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
+		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
 	} else {
 		if (!audio_dma_on) HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
 
-		int j = 0;
-		while (j < num_tracks) {
-			uint16_t* buff = audio_tracks[j].buff;
-			uint16_t pos = audio_tracks[j].pos;
-			uint16_t len = audio_tracks[j].length;
-			uint16_t min = (len - pos > AUDIO_BUFF_LENGTH) ? AUDIO_BUFF_LENGTH : len - pos;
-			for (int i = 0; i < min; i++) {
-				audio_buff[i].i += buff[pos + i] / 3;
-			}
-			pos += min;
-			audio_tracks[j].pos = pos;
-			if (pos >= len) {
-				RemoveTrack(j);
-			} else {
-				j++; // if you understand how RemoveTrack works
-			}
-		}
+		// trying to just play don
 
 		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
-			audio_buff[i].u = -audio_buff[i].i + 32768;
+			audio_buff[i].u = (int16_t) (don[pos]) / 4 + 32768;
+//			audio_buff[2 * i + 1].u = don_signed[pos] / 4 + 32768;
+			pos = (pos + 1) % don_length;
 		}
+
+//		int j = 0;
+//		while (j < num_tracks) {
+//			int16_t* buff = audio_tracks[j].buff;
+//			uint16_t pos = audio_tracks[j].pos;
+//			uint16_t len = audio_tracks[j].length;
+//			// min(remaining length of song, audio_buff length)
+//			uint16_t min = (len - pos > AUDIO_BUFF_LENGTH) ? AUDIO_BUFF_LENGTH : len - pos;
+//			for (int i = 0; i < min; i++) {
+//				audio_buff[i].i += buff[pos + i] / 3;
+//			}
+//			pos += min;
+//			audio_tracks[j].pos = pos;
+//			if (pos >= len) {
+//				RemoveTrack(j);
+//			} else {
+//				j++; // if you understand how RemoveTrack works
+//			}
+//		}
+//
+//		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
+//			audio_buff[i].u = -audio_buff[i].i + 32768;
+//		}
 	}
 
 }
@@ -278,6 +366,7 @@ void RemoveTrack(uint16_t index) {
 	if (num_tracks <= 0) return;
 	audio_tracks[index] = audio_tracks[--num_tracks];
 }
+
 
 /* USER CODE END 0 */
 
@@ -330,6 +419,10 @@ int main(void)
 //  HAL_TIM_Base_Start(&htim4);
 //  HAL_TIM_Base_Start(&htim2);
 
+	HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
+	HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
 
 	ILI9341_Init();
 	ILI9341_Set_Rotation(2);
@@ -371,19 +464,24 @@ int main(void)
   	f_close(&file);
 
 //  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, 128, DAC_ALIGN_12B_L);
+
 	HAL_TIM_Base_Start_IT(&htim3);
   	drum_interrupt_start_tick = HAL_GetTick();
-//	HAL_TIM_Base_Start(&htim2);
-//	__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
-//	HAL_TIM_Base_Start_IT(&htim4);
-	HAL_TIM_Base_Start_IT(&htim2);
+
+	HAL_TIM_Base_Start(&htim2);
+	__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
   	audio_interrupt_start_tick = HAL_GetTick();
+
+  	HAL_TIM_Base_Start_IT(&htim4);
+	mix_interrupt_start_tick = HAL_GetTick();
 //	HAL_TIM_Base_Start(&htim4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
+//
 //	uint16_t Wave_LUT[128] = {
 //	    2048, 2149, 2250, 2350, 2450, 2549, 2646, 2742, 2837, 2929, 3020, 3108, 3193, 3275, 3355,
 //	    3431, 3504, 3574, 3639, 3701, 3759, 3812, 3861, 3906, 3946, 3982, 4013, 4039, 4060, 4076,
@@ -395,8 +493,7 @@ int main(void)
 //	    234, 283, 336, 394, 456, 521, 591, 664, 740, 820, 902, 987, 1075, 1166, 1258,
 //	    1353, 1449, 1546, 1645, 1745, 1845, 1946, 2047
 //	};
-//	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-//	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)Wave_LUT, 128, DAC_ALIGN_12B_R);
+
 
 
 //  LCD_DrawFilledRectangle(0, 0, 240, 320, RED);
@@ -407,6 +504,7 @@ int main(void)
 	int num_hits = 0;
 	int hit_state = 0;
 	while (1) {
+
 
 //		keyboardhid.MODIFIER = 0x02;  // left Shift
 //		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
@@ -427,6 +525,7 @@ int main(void)
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
 //		HAL_Delay (200);
 
+		LCD_Print(0, 0, "%4ld", drum_sensor_values[0]);
 
 //	  if (drum_sensor_values[0] > 300) {
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
@@ -435,22 +534,26 @@ int main(void)
 //		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 //	  }
 //
-		if (HAL_GetTick() - tft_last_ticks > 20) {
+		if (HAL_GetTick() - tft_last_ticks > 200) {
 
 			AddDrum(HAL_GetTick() % 2);
 
 //			__disable_irq();
 			int r = 0;
-			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1f Hz",
+			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1f Hz, %2d",
 					HAL_GetTick() / (1000 * 60 * 60),
 					HAL_GetTick() / (1000 * 60) % 60,
 					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
-					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000);
-			LCD_Print(0, r++, "AUD: %10d, %6.1f", audio_interrupt_counts,
-					(float) audio_interrupt_counts / (HAL_GetTick() - audio_interrupt_start_tick + 1) * 1000);
+					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
+					num_tracks);
+
+//			LCD_Print(0, r++, "AUD: %10d, %6.1f", audio_interrupt_counts,
+//					(float) audio_interrupt_counts / (HAL_GetTick() - audio_interrupt_start_tick + 1) * 1000);
+//			LCD_Print(0, r++, "MIX: %10d, %6.1f", mix_interrupt_counts,
+//					(float) mix_interrupt_counts / (HAL_GetTick() - mix_interrupt_start_tick + 1) * 1000);
 
 //			LCD_Print(0, r++, "         adc | hits");
-//			for (int i = 0; i < 2; i++) {
+//			for (int i = 0; i < 1; i++) {
 //				LCD_Print(0, r++, "Drum %d: %4ld | %4d | %4d", i,
 //						drum_sensor_values[i], drums[i].hit_count, drum_max_val[i]);
 //			}
@@ -464,6 +567,50 @@ int main(void)
 
 			tft_last_ticks = HAL_GetTick();
 		}
+
+		int stuff[17];
+		int keyPressed = 0;
+		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
+		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
+		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
+		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 0);
+		stuff[16] = HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN);
+		stuff[15] = HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN);
+		stuff[14] = HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN);
+		stuff[13] = HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN);
+
+		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 0);
+		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
+		stuff[12] = HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN);
+		stuff[11] = HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN);
+		stuff[10] = HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN);
+		stuff[9] = HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN);
+
+		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
+		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
+		stuff[8] = HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN);
+		stuff[7] = HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN);
+		stuff[6] = HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN);
+		stuff[5] = HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN);
+
+		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
+		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
+		stuff[4] = HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN);
+		stuff[3] = HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN);
+		stuff[2] = HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN);
+		stuff[1] = HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN);
+
+		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
+		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
+		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
+		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
+
+		LCD_Print(0, 6, "BTN: %d%d%d%d|%d%d%d%d|%d%d%d%d|%d%d%d%d",
+				stuff[1], stuff[2], stuff[3], stuff[4],
+				stuff[5], stuff[6], stuff[7], stuff[8],
+				stuff[9], stuff[10], stuff[11], stuff[12],
+				stuff[13], stuff[14], stuff[15], stuff[16]);
+
 //
 //	  if (HAL_GetTick() - last_ticks > 400) {
 //
@@ -784,8 +931,8 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
@@ -862,14 +1009,14 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 0;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 0;
+  htim4.Init.Period = 499;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_TRIGGER;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
   sSlaveConfig.InputTrigger = TIM_TS_ITR1;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
   {
@@ -920,37 +1067,43 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|T_CLK_Pin
+                          |T_CS_Pin|T_DIN_Pin|T_DO_Pin|T_IRQ_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, T_CLK_Pin|T_CS_Pin|T_DIN_Pin|T_DO_Pin
-                          |T_IRQ_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LCD_DC_Pin|LCD_CS_Pin|LCD_RST_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  /*Configure GPIO pins : PE2 PE3 PE0 PE1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_0|GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : T_CLK_Pin T_CS_Pin T_DIN_Pin T_DO_Pin
-                           T_IRQ_Pin */
-  GPIO_InitStruct.Pin = T_CLK_Pin|T_CS_Pin|T_DIN_Pin|T_DO_Pin
-                          |T_IRQ_Pin;
+  /*Configure GPIO pins : PE4 PE5 PE6 T_CLK_Pin
+                           T_CS_Pin T_DIN_Pin T_DO_Pin T_IRQ_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|T_CLK_Pin
+                          |T_CS_Pin|T_DIN_Pin|T_DO_Pin|T_IRQ_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LCD_DC_Pin LCD_CS_Pin LCD_RST_Pin */
   GPIO_InitStruct.Pin = LCD_DC_Pin|LCD_CS_Pin|LCD_RST_Pin;
