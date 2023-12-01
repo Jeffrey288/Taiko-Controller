@@ -7,12 +7,14 @@
 extern FATFS fs;
 
 #define DRUM_CALIBRATION_SAMPLE_NUM 300
-#define DRUM_COOLDOWN_LENGTH 2
+#define DRUM_COOLDOWN_LENGTH 8
 
 typedef enum {
-	DRUM_IDLE,
-	DRUM_HIT,
-	DRUM_COOLDOWN,
+	DRUM_IDLE = 0,
+	DRUM_OFF = 0,
+	DRUM_HIT = 1,
+	DRUM_ON = 1,
+	DRUM_COOLDOWN = 2,
 	NUM_DRUM_STATES
 } DrumState;
 
@@ -32,8 +34,14 @@ typedef enum {
 	DRUM_OUTPUT_WII
 } DrumOutputDevice;
 
+typedef enum {
+	DRUM_DON,
+	DRUM_KA,
+} DrumSound;
+
 typedef struct {
 	DrumType type;
+	DrumSound sound;
 
 	uint32_t hit_count;
 
@@ -47,42 +55,16 @@ typedef struct {
 	uint32_t sensor_thresh;
 } DrumStruct;
 
-//typedef void (*DrumOutputCallback) (DrumType);
-extern uint32_t drum_sensor_values[4];
-extern DrumStruct drums[4];
+extern uint32_t drum_sensor_values[NUM_DRUMS];
+extern DrumStruct drums[NUM_DRUMS];
 extern DrumOutputDevice drum_output_device;
-//extern DrumOutputCallback drum_output_callback;
+extern uint32_t drum_max_val[NUM_DRUMS]; // used for debug
 
 void DrumInit();
 void DrumCalibrate();
-
-// This runs every millisecond
-static inline void DrumUpdate() {
-
-	int i = 0;
-	DrumStruct* drum = drums;
-	for (; i < 4; i++, drum++) {
-		if (*(drum->sensor_value_pt) > drum->sensor_thresh) {
-			if (drum->state != DRUM_HIT) {
-				drum->last_tick = HAL_GetTick();
-//				if (drum->state == DRUM_IDLE) {
-//					drum_output_callback(i);
-//				}
-				drum->state = DRUM_HIT;
-			}
-		} else {
-			if (drum->state == DRUM_IDLE) {
-			} else if (drum->state == DRUM_HIT) {
-				drum->last_tick = HAL_GetTick();
-				drum->state = DRUM_COOLDOWN;
-			} else if (HAL_GetTick() - drum->last_tick > DRUM_COOLDOWN_LENGTH) {
-//				drum->last_tick = HAL_GetTick();
-				drum->state = DRUM_IDLE;
-			}
-		}
-	}
-
-}
-
+void DrumUpdate(uint16_t);
+void DrumThreshWrite();
+void LCD_DrumCalibration(int* r);
+void ButtonPad_DrumCalibration(int keyPressed);
 
 #endif // __DRUM_H

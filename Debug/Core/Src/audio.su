@@ -1,0 +1,4 @@
+../Core/Src/audio.c:12:6:AddDrum	24	static
+../Core/Src/audio.c:20:6:AddTrack	16	static
+../Core/Src/audio.c:25:6:RemoveTrack	16	static
+../Core/Src/audio.c:30:6:PrecomputeMix	40	static

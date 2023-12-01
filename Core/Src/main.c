@@ -26,6 +26,8 @@
 #include "lcd.h"
 #include "drum.h"
 #include "kadon.h"
+#include "audio.h"
+#include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,7 +115,6 @@ static void MX_TIM4_Init(void);
  *
  **************************************************************************************************/
 
-int drum_max_val[4] = {0, 0, 0, 0};
 int drum_interrupt_start_tick = 0;
 int drum_interrupt_counts = 0;
 
@@ -124,124 +125,20 @@ uint32_t mix_interrupt_start_tick = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
-//		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-//		DrumUpdate();
-//
-//		if (HAL_GetTick() % 3000 < 10) {
-//			for (int i = 0; i < 4; i++) {
-//				drum_max_val[i] = 0;
-//			}
-//		}
-//		for (int i = 0; i < 4; i++) {
-//			if (drum_max_val[i] < drum_sensor_values[i]) {
-//				drum_max_val[i] = drum_sensor_values[i];
-//			}
-//		}
+		DrumUpdate(0);
 	}
 
 	else if (htim == &htim4) {
 		mix_interrupt_counts++;
 		PrecomputeMix();
 	}
-
-
 }
 
-
-
-#define BTN_PAD_R1_PORT	GPIOE
-#define BTN_PAD_R1_PIN	GPIO_PIN_0
-#define BTN_PAD_R2_PORT GPIOE
-#define BTN_PAD_R2_PIN 	GPIO_PIN_1
-#define BTN_PAD_R3_PORT	GPIOE
-#define BTN_PAD_R3_PIN 	GPIO_PIN_2
-#define BTN_PAD_R4_PORT GPIOE
-#define BTN_PAD_R4_PIN	GPIO_PIN_3
-#define BTN_PAD_C1_PORT GPIOE
-#define BTN_PAD_C1_PIN	GPIO_PIN_4
-#define BTN_PAD_C2_PORT	GPIOE
-#define BTN_PAD_C2_PIN	GPIO_PIN_5
-#define BTN_PAD_C3_PORT	GPIOE
-#define BTN_PAD_C3_PIN	GPIO_PIN_6
-#define BTN_PAD_C4_PORT	GPIOC
-#define BTN_PAD_C4_PIN	GPIO_PIN_13
-
-GPIO_InitTypeDef GPIO_InitStructPrivate = {0};
-uint32_t previousMillis = 0;
-uint32_t currentMillis = 0;
-uint16_t keyPressed = 0;
-//uint16_t previousKeyPressed = 0;
 uint16_t btn_callbacks = 0;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	// See if it's falling or rising edge, may fail at times
-	int callback_pin_value = HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, GPIO_Pin);
-	if (callback_pin_value == GPIO_PIN_RESET) {
-		previousMillis = HAL_GetTick();
-		return;
-	}
-
-//	btn_callbacks += 1;
-//	return;
-	currentMillis = HAL_GetTick();
-	keyPressed = 0;
-	if (currentMillis - previousMillis > 20) {
-
-		// Change this if the R pins are not the same
-		GPIO_InitStructPrivate.Pin = BTN_PAD_R1_PIN|BTN_PAD_R2_PIN|BTN_PAD_R3_PIN|BTN_PAD_R4_PIN;
-		GPIO_InitStructPrivate.Mode = GPIO_MODE_INPUT;
-		GPIO_InitStructPrivate.Pull = GPIO_NOPULL;
-		GPIO_InitStructPrivate.Speed = GPIO_SPEED_FREQ_LOW;
-		HAL_GPIO_Init(BTN_PAD_R1_PORT, &GPIO_InitStructPrivate);
-
-		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
-		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
-		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
-		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 0);
-		if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN) && GPIO_Pin == BTN_PAD_R1_PIN) keyPressed = 16;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN) && GPIO_Pin == BTN_PAD_R2_PIN) keyPressed = 15;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN) && GPIO_Pin == BTN_PAD_R3_PIN) keyPressed = 14;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN) && GPIO_Pin == BTN_PAD_R4_PIN) keyPressed = 13;
-
-		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 0);
-		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
-		if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN) && GPIO_Pin == BTN_PAD_R1_PIN) keyPressed = 12;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN) && GPIO_Pin == BTN_PAD_R2_PIN) keyPressed = 11;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN) && GPIO_Pin == BTN_PAD_R3_PIN) keyPressed = 10;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN) && GPIO_Pin == BTN_PAD_R4_PIN) keyPressed = 9;
-
-		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 0);
-		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
-		if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN) && GPIO_Pin == BTN_PAD_R1_PIN) keyPressed = 8;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN) && GPIO_Pin == BTN_PAD_R2_PIN) keyPressed = 7;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN) && GPIO_Pin == BTN_PAD_R3_PIN) keyPressed = 6;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN) && GPIO_Pin == BTN_PAD_R4_PIN) keyPressed = 5;
-
-		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 0);
-		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
-		if (HAL_GPIO_ReadPin(BTN_PAD_R1_PORT, BTN_PAD_R1_PIN) && GPIO_Pin == BTN_PAD_R1_PIN) keyPressed = 4;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R2_PORT, BTN_PAD_R2_PIN) && GPIO_Pin == BTN_PAD_R2_PIN) keyPressed = 3;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R3_PORT, BTN_PAD_R3_PIN) && GPIO_Pin == BTN_PAD_R3_PIN) keyPressed = 2;
-		if (HAL_GPIO_ReadPin(BTN_PAD_R4_PORT, BTN_PAD_R4_PIN) && GPIO_Pin == BTN_PAD_R4_PIN) keyPressed = 1;
-
-		HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
-		HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
-		HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
-		HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
-
-		GPIO_InitStructPrivate.Mode = GPIO_MODE_IT_RISING_FALLING;
-		GPIO_InitStructPrivate.Pull = GPIO_PULLDOWN;
-		HAL_GPIO_Init(BTN_PAD_R1_PORT, &GPIO_InitStructPrivate);
-
-		switch (keyPressed) {
-			case 0: return;
-			case 1: btn_callbacks += 1; break;
-			case 2: btn_callbacks -= 1; break;
-		}
-
-	}
-
-	previousMillis = currentMillis;
+	int keyPressed = ButtonPadCallback(GPIO_Pin);
+	ButtonPad_DrumCalibration(keyPressed);
 }
 
 
@@ -294,114 +191,6 @@ typedef enum {
 	MUSIC_PLAYING,
 } MusicState;
 
-
-// ----------- AUDIO PLAYBACK -------------
-#define AUDIO_FREQ		48000		// TIMER SETTING
-#define SYSCLK_FREQ		72000000	// SYSCLOCK FREQUENCY
-#define AUDIO_BUFF_LENGTH 500
-#define MAX_TRACKS 	10
-#define	AUDIO_MASTER_FREQ	AUDIO_FREQ
-#define AUDIO_SLAVE_FREQ	96 	// (AUDIO_FREQ / AUDIO_PRECOMP)
-//#define AUDIO_PRECOMP_PERIOD
-typedef enum {
-	DRUM_DON,
-	DRUM_KA,
-} DrumSound;
-
-union {
-	uint16_t u;
-	int16_t i;
-} audio_buff[AUDIO_BUFF_LENGTH];
-typedef struct {
-	int16_t* buff;
-	uint16_t length;
-	uint16_t pos;
-} AudioTrack;
-AudioTrack audio_tracks[MAX_TRACKS];
-int num_tracks = 0;
-int audio_dma_on = 0;
-
-void AddDrum(DrumSound sound) {
-	AddTrack((AudioTrack) {
-		.buff = drum_sounds[sound],
-		.length = drum_sound_lengths[sound],
-		.pos = 0
-	});
-}
-
-DAC_HandleTypeDef hdac;
-int pos = 0;
-void PrecomputeMix() {
-
-	if (num_tracks <= 0) {
-		if (audio_dma_on) {
-			HAL_DAC_Stop_DMA(&hdac, DAC_CHANNEL_1);
-			audio_dma_on = 0;
-		}
-		memset(audio_buff, 0, AUDIO_BUFF_LENGTH * 2);
-	} else {
-		if (!audio_dma_on) {
-			// Resynchronize the timer
-			HAL_TIM_Base_Stop(&htim2);
-			HAL_TIM_Base_Stop(&htim4);
-
-			HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
-			TIM2->CNT = 0;
-			TIM4->CNT = 0;
-
-			HAL_TIM_Base_Start(&htim2);
-			__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
-			HAL_TIM_Base_Start_IT(&htim4);
-
-			audio_dma_on = 1;
-		}
-
-		// trying to just play don
-		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
-//			audio_buff[i].u = (int16_t) (don[pos]) / 4 + 32768;
-			audio_buff[i].u = ka[pos];
-//			audio_buff[2 * i + 1].u = don_signed[pos] / 4 + 32768;
-			pos = (pos + 1) % ka_length;
-		}
-
-
-//		int j = 0;
-//		while (j < num_tracks) {
-//			int16_t* buff = audio_tracks[j].buff;
-//			uint16_t pos = audio_tracks[j].pos;
-//			uint16_t len = audio_tracks[j].length;
-//			// min(remaining length of song, audio_buff length)
-//			uint16_t min = (len - pos > AUDIO_BUFF_LENGTH) ? AUDIO_BUFF_LENGTH : len - pos;
-//			for (int i = 0; i < min; i++) {
-//				audio_buff[i].i += buff[pos + i] / 3;
-//			}
-//			pos += min;
-//			audio_tracks[j].pos = pos;
-//			if (pos >= len) {
-//				RemoveTrack(j);
-//			} else {
-//				j++; // if you understand how RemoveTrack works
-//			}
-//		}
-//
-//		for (int i = 0; i < AUDIO_BUFF_LENGTH; i++) {
-//			audio_buff[i].u = -audio_buff[i].i + 32768;
-//		}
-	}
-
-}
-
-void AddTrack(AudioTrack track) {
-	if (num_tracks >= MAX_TRACKS) return;
-	audio_tracks[num_tracks++] = track;
-}
-
-void RemoveTrack(uint16_t index) {
-	if (num_tracks <= 0) return;
-	audio_tracks[index] = audio_tracks[--num_tracks];
-}
-
-
 /* USER CODE END 0 */
 
 /**
@@ -443,58 +232,22 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
-	HAL_GPIO_WritePin(BTN_PAD_C1_PORT, BTN_PAD_C1_PIN, 1);
-	HAL_GPIO_WritePin(BTN_PAD_C2_PORT, BTN_PAD_C2_PIN, 1);
-	HAL_GPIO_WritePin(BTN_PAD_C3_PORT, BTN_PAD_C3_PIN, 1);
-	HAL_GPIO_WritePin(BTN_PAD_C4_PORT, BTN_PAD_C4_PIN, 1);
+	ButtonPadInit();
 
 	ILI9341_Init();
 	ILI9341_Set_Rotation(2);
 	LCD_FillScreen(PINK);
-	HAL_ADC_Start_DMA(&hadc1, drum_sensor_values, 4);
-	DrumInit();
+
 
   	// Setting the clock divider somehow helps :D
   	FRESULT fresult = f_mount(&fs, "/", 1);
   	if (fresult != FR_OK) {
-  		LCD_Print(0, 10, "Error: f_mount (%d)", fresult); while (1);
+  		LCD_Print(0, 19, "Error: f_mount (%d)", fresult); while (1);
   	}
 
-  	FIL file;
-  	uint16_t temp;
-  	fresult = f_open(&file, "drum.cfg", FA_READ | FA_WRITE);
-  	if (fresult == FR_OK) {
-  		uint32_t buff[5];
-  		fresult = f_read(&file, buff, 5 * 4, &temp);
-  		if (buff[0] + buff[1] + buff[2] + buff[3] == buff[4]) {
-  			for (int i = 0; i < 4; i++) drums[i].sensor_thresh = buff[i];
-  		} else {
-  			DrumCalibrate();
-  			uint32_t buff[5] = {drums[0].sensor_thresh, drums[1].sensor_thresh, drums[2].sensor_thresh, drums[3].sensor_thresh,
-					drums[0].sensor_thresh + drums[1].sensor_thresh + drums[2].sensor_thresh + drums[3].sensor_thresh};
-  			fresult = f_write(&file, buff, 5 * 4, &temp);
-  		}
-  		LCD_Print(0, 10, "Have file, reading... %d", fresult);
-  	} else if (fresult == FR_NO_FILE) {
-  		fresult = f_open(&file, "drum.cfg", FA_WRITE | FA_CREATE_NEW);
-  		DrumCalibrate();
-  		uint32_t buff[5] = {drums[0].sensor_thresh, drums[1].sensor_thresh, drums[2].sensor_thresh, drums[3].sensor_thresh,
-  				drums[0].sensor_thresh + drums[1].sensor_thresh + drums[2].sensor_thresh + drums[3].sensor_thresh};
-  		fresult = f_write(&file, buff, 5 * 4, &temp);
-  		LCD_Print(0, 10, "No file, calibrating... %d", fresult);
-  	} else {
-  		LCD_Print(0, 10, "Error: f_open (%d)", fresult); while (1);
-  	}
-  	f_close(&file);
+	DrumInit();
 
-//  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-  	for (int i = 0; i < ka_length; i++) {
-  		ka[i] = (int32_t) (((int16_t*) ka)[i]) / 3 + 32768;
-  	}
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-//	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)don, 23239, DAC_ALIGN_12B_L);
-	HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)audio_buff, AUDIO_BUFF_LENGTH, DAC_ALIGN_12B_L);
-	audio_dma_on = 1;
 
 	HAL_TIM_Base_Start_IT(&htim3);
   	drum_interrupt_start_tick = HAL_GetTick();
@@ -510,22 +263,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//
-//	uint16_t Wave_LUT[128] = {
-//	    2048, 2149, 2250, 2350, 2450, 2549, 2646, 2742, 2837, 2929, 3020, 3108, 3193, 3275, 3355,
-//	    3431, 3504, 3574, 3639, 3701, 3759, 3812, 3861, 3906, 3946, 3982, 4013, 4039, 4060, 4076,
-//	    4087, 4094, 4095, 4091, 4082, 4069, 4050, 4026, 3998, 3965, 3927, 3884, 3837, 3786, 3730,
-//	    3671, 3607, 3539, 3468, 3394, 3316, 3235, 3151, 3064, 2975, 2883, 2790, 2695, 2598, 2500,
-//	    2400, 2300, 2199, 2098, 1997, 1896, 1795, 1695, 1595, 1497, 1400, 1305, 1212, 1120, 1031,
-//	    944, 860, 779, 701, 627, 556, 488, 424, 365, 309, 258, 211, 168, 130, 97,
-//	    69, 45, 26, 13, 4, 0, 1, 8, 19, 35, 56, 82, 113, 149, 189,
-//	    234, 283, 336, 394, 456, 521, 591, 664, 740, 820, 902, 987, 1075, 1166, 1258,
-//	    1353, 1449, 1546, 1645, 1745, 1845, 1946, 2047
-//	};
-
-
-
-//  LCD_DrawFilledRectangle(0, 0, 240, 320, RED);
 
 	long last_ticks = 0;
 	long tft_last_ticks = 0;
@@ -554,20 +291,9 @@ int main(void)
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
 //		HAL_Delay (200);
 
-		LCD_Print(0, 1, "%4ld, %6d", drum_sensor_values[0], pos);
+		if (HAL_GetTick() - tft_last_ticks > 10) {
 
-//	  if (drum_sensor_values[0] > 300) {
-//		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-//		  num_hits += 1;
-//	  } else {
-//		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
-//	  }
-//
-		if (HAL_GetTick() - tft_last_ticks > 200) {
-
-			AddDrum(HAL_GetTick() % 2);
-
-//			__disable_irq();
+//			AddDrum((HAL_GetTick() / 1000) % 2);
 			int r = 0;
 			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1f Hz, %2d",
 					HAL_GetTick() / (1000 * 60 * 60),
@@ -575,29 +301,9 @@ int main(void)
 					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
 					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
 					num_tracks);
-
-//			LCD_Print(0, r++, "AUD: %10d, %6.1f", audio_interrupt_counts,
-//					(float) audio_interrupt_counts / (HAL_GetTick() - audio_interrupt_start_tick + 1) * 1000);
-//			LCD_Print(0, r++, "MIX: %10d, %6.1f", mix_interrupt_counts,
-//					(float) mix_interrupt_counts / (HAL_GetTick() - mix_interrupt_start_tick + 1) * 1000);
-
-//			LCD_Print(0, r++, "         adc | hits");
-//			for (int i = 0; i < 1; i++) {
-//				LCD_Print(0, r++, "Drum %d: %4ld | %4d | %4d", i,
-//						drum_sensor_values[i], drums[i].hit_count, drum_max_val[i]);
-//			}
-
-//			for (int i = 0; i < 4; i++) {
-//				LCD_Print(0, r++, "%lf, %lf, %d",
-//						drums[i].sensor_avg, drums[i].sensor_sd, drums[i].sensor_thresh);
-//			}
-
-//			__enable_irq();
-
+			LCD_DrumCalibration(&r);
 			tft_last_ticks = HAL_GetTick();
 		}
-
-		LCD_Print(0, 6, "BTN: %3d", btn_callbacks);
 
 //
 //	  if (HAL_GetTick() - last_ticks > 400) {

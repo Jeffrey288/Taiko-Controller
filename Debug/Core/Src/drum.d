@@ -40,7 +40,8 @@ Core/Src/drum.o: ../Core/Src/drum.c ../Core/Inc/drum.h \
  ../Middlewares/Third_Party/FatFs/src/ff_gen_drv.h \
  ../Middlewares/Third_Party/FatFs/src/diskio.h \
  ../Middlewares/Third_Party/FatFs/src/ff.h \
- ../Middlewares/Third_Party/FatFs/src/drivers/sd_diskio.h
+ ../Middlewares/Third_Party/FatFs/src/drivers/sd_diskio.h \
+ ../Core/Inc/lcd.h ../Core/Inc/main.h
 ../Core/Inc/drum.h:
 ../FATFS/App/fatfs.h:
 ../Middlewares/Third_Party/FatFs/src/ff.h:
@@ -87,3 +88,5 @@ Core/Src/drum.o: ../Core/Src/drum.c ../Core/Inc/drum.h \
 ../Middlewares/Third_Party/FatFs/src/diskio.h:
 ../Middlewares/Third_Party/FatFs/src/ff.h:
 ../Middlewares/Third_Party/FatFs/src/drivers/sd_diskio.h:
+../Core/Inc/lcd.h:
+../Core/Inc/main.h:
