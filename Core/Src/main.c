@@ -28,6 +28,7 @@
 #include "kadon.h"
 #include "audio.h"
 #include "button.h"
+#include "usb_device.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,29 +119,6 @@ static void MX_TIM4_Init(void);
 int drum_interrupt_start_tick = 0;
 int drum_interrupt_counts = 0;
 
-uint32_t audio_interrupt_counts = 0;
-uint32_t audio_interrupt_start_tick = 0;
-uint32_t mix_interrupt_counts = 0;
-uint32_t mix_interrupt_start_tick = 0;
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	if (htim == &htim3) {
-		drum_interrupt_counts++;
-		DrumUpdate(0);
-	}
-
-	else if (htim == &htim4) {
-		mix_interrupt_counts++;
-		PrecomputeMix();
-	}
-}
-
-uint16_t btn_callbacks = 0;
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	int keyPressed = ButtonPadCallback(GPIO_Pin);
-	ButtonPad_DrumCalibration(keyPressed);
-}
-
 
 typedef struct
 {
@@ -185,11 +163,40 @@ typedef enum {
     SWITCH_CAPTURE = 0x2000,
 } JoystickButtons;
 
-typedef enum {
-	MUSIC_UNINITED,
-	MUSIC_PAUSED,
-	MUSIC_PLAYING,
-} MusicState;
+
+
+uint32_t audio_interrupt_counts = 0;
+uint32_t audio_interrupt_start_tick = 0;
+uint32_t mix_interrupt_counts = 0;
+uint32_t mix_interrupt_start_tick = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == &htim3) {
+		drum_interrupt_counts++;
+		DrumUpdate(0);
+
+//		keyboardhid.KEYCODE1 = drums[0].state >= DRUM_HIT ? 0x07 : 0x00;  // press 'd'
+//		keyboardhid.KEYCODE2 = drums[1].state >= DRUM_HIT ? 0x09 : 0x00;  // press 'f'
+//		keyboardhid.KEYCODE3 = drums[2].state >= DRUM_HIT ? 0x0d : 0x00;  // press 'j'
+//		keyboardhid.KEYCODE4 = drums[3].state >= DRUM_HIT ? 0x0e : 0x00;  // press 'k'
+//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof(keyboardhid));
+	}
+
+	else if (htim == &htim4) {
+		mix_interrupt_counts++;
+		PrecomputeMix();
+	}
+}
+
+uint16_t btn_callbacks = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	int keyPressed = ButtonPadCallback(GPIO_Pin);
+	ButtonPad_DrumCalibration(keyPressed);
+
+
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -272,16 +279,16 @@ int main(void)
 	while (1) {
 
 
-//		keyboardhid.MODIFIER = 0x02;  // left Shift
-//		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
-//		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
-//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-//		HAL_Delay (50);
-//
-//		keyboardhid.MODIFIER = 0x00;  // shift release
-//		keyboardhid.KEYCODE1 = 0x00;  // release key
-//		keyboardhid.KEYCODE2 = 0x00;  // release key
-//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+		keyboardhid.MODIFIER = 0x02;  // left Shift
+		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
+		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
+		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+		HAL_Delay (50);
+
+		keyboardhid.MODIFIER = 0x00;  // shift release
+		keyboardhid.KEYCODE1 = 0x00;  // release key
+		keyboardhid.KEYCODE2 = 0x00;  // release key
+		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
 //		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));

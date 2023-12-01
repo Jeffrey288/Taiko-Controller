@@ -21,6 +21,12 @@ typedef struct {
 	uint16_t pos;
 } AudioTrack;
 
+//typedef enum {
+//	MUSIC_UNINITED,
+//	MUSIC_PAUSED,
+//	MUSIC_PLAYING,
+//} AudioState;
+
 extern AudioTrack audio_tracks[MAX_TRACKS];
 extern int num_tracks;
 extern int audio_dma_on;
