@@ -167,8 +167,9 @@ void DrumUpdate(uint16_t activations) { // actiavtions: bitwise representation
 uint16_t drum_calibrate_number = 0;
 uint32_t drum_max_val_reset_ticks = 0;
 void LCD_DrumCalibration(int* r) {
-	if (HAL_GetTick() - drum_max_val_reset_ticks > 3000) {
+	if (HAL_GetTick() - drum_max_val_reset_ticks > 1500) {
 		for (int i = 0; i < NUM_DRUMS; i++) drum_max_val[i] = 0;
+		drum_max_val_reset_ticks = HAL_GetTick();
 	}
 
 	LCD_Print(0, (*r)++, "cal: %2d | adc | hits | max", drum_calibrate_number);
@@ -182,6 +183,8 @@ void LCD_DrumCalibration(int* r) {
 		LCD_Print(0, (*r)++, "%4d | %3d | %4.0f | %2.2f",
 				drums[i].sensor_thresh, drums[i].state, drums[i].sensor_avg, drums[i].sensor_sd);
 	}
+
+//	LCD_Print(0, (*r)++, "%3d", drums[0].state);
 
 }
 

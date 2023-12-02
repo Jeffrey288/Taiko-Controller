@@ -174,11 +174,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		drum_interrupt_counts++;
 		DrumUpdate(0);
 
-//		keyboardhid.KEYCODE1 = drums[0].state >= DRUM_HIT ? 0x07 : 0x00;  // press 'd'
-//		keyboardhid.KEYCODE2 = drums[1].state >= DRUM_HIT ? 0x09 : 0x00;  // press 'f'
-//		keyboardhid.KEYCODE3 = drums[2].state >= DRUM_HIT ? 0x0d : 0x00;  // press 'j'
-//		keyboardhid.KEYCODE4 = drums[3].state >= DRUM_HIT ? 0x0e : 0x00;  // press 'k'
-//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof(keyboardhid));
+//		if (drum_interrupt_counts % 2 == 0) {
+
+		keyboardhid.KEYCODE1 = drums[0].state >= DRUM_HIT ? 0x07 : 0x00;  // press 'd'
+		keyboardhid.KEYCODE2 = drums[1].state >= DRUM_HIT ? 0x09 : 0x00;  // press 'f'
+		keyboardhid.KEYCODE3 = drums[2].state >= DRUM_HIT ? 0x0d : 0x00;  // press 'j'
+		keyboardhid.KEYCODE4 = drums[3].state >= DRUM_HIT ? 0x0e : 0x00;  // press 'k'
+		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof(keyboardhid));
+//		}
 	}
 
 	else if (htim == &htim4) {
@@ -239,6 +242,8 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+
 	ButtonPadInit();
 
 	ILI9341_Init();
@@ -279,16 +284,16 @@ int main(void)
 	while (1) {
 
 
-		keyboardhid.MODIFIER = 0x02;  // left Shift
-		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
-		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
-		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-		HAL_Delay (50);
-
-		keyboardhid.MODIFIER = 0x00;  // shift release
-		keyboardhid.KEYCODE1 = 0x00;  // release key
-		keyboardhid.KEYCODE2 = 0x00;  // release key
-		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//		keyboardhid.MODIFIER = 0x02;  // left Shift
+//		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
+//		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
+//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//		HAL_Delay (50);
+//
+//		keyboardhid.MODIFIER = 0x00;  // shift release
+//		keyboardhid.KEYCODE1 = 0x00;  // release key
+//		keyboardhid.KEYCODE2 = 0x00;  // release key
+//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
 //		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));
@@ -663,7 +668,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 719;
+  htim3.Init.Prescaler = 50; // 719;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 49;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

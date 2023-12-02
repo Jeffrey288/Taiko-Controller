@@ -7,7 +7,7 @@
 extern FATFS fs;
 
 #define DRUM_CALIBRATION_SAMPLE_NUM 300
-#define DRUM_COOLDOWN_LENGTH 8
+#define DRUM_COOLDOWN_LENGTH 20
 
 typedef enum {
 	DRUM_IDLE = 0,
