@@ -59,6 +59,7 @@ extern uint32_t drum_sensor_values[NUM_DRUMS];
 extern DrumStruct drums[NUM_DRUMS];
 extern DrumOutputDevice drum_output_device;
 extern uint32_t drum_max_val[NUM_DRUMS]; // used for debug
+extern uint8_t drum_i2c_buff[20];
 
 void DrumInit();
 void DrumCalibrate();

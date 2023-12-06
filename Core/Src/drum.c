@@ -8,6 +8,7 @@
 FATFS fs;
 
 uint32_t drum_sensor_values[NUM_DRUMS];
+uint8_t drum_i2c_buff[20];
 DrumStruct drums[NUM_DRUMS];
 DrumOutputDevice drum_output_device;
 uint32_t drum_max_val[NUM_DRUMS] = {0};
@@ -15,7 +16,7 @@ uint32_t drum_max_val[NUM_DRUMS] = {0};
 void DrumInit() {
 
 	// init ADC
-	HAL_ADC_Start_DMA(&hadc1, drum_sensor_values, 4);
+//	HAL_ADC_Start_DMA(&hadc1, drum_sensor_values, 4);
 
 	// init drums struct
 	drum_output_device = DRUM_OUTPUT_NONE;
@@ -39,7 +40,7 @@ void DrumInit() {
 	FRESULT fresult = f_open(&file, "drum.cfg", FA_READ | FA_WRITE);
 	if (fresult == FR_OK) {
 		uint32_t buff[5];
-		fresult = f_read(&file, buff, 5 * 4, &temp);
+//		fresult = f_read(&file, buff, 5 * 4, &temp);
 		if (buff[0] + buff[1] + buff[2] + buff[3] == buff[4]) {
 			for (int i = 0; i < 4; i++) drums[i].sensor_thresh = buff[i];
 		} else {
@@ -136,6 +137,14 @@ void DrumCalibrate() {
 void DrumUpdate(uint16_t activations) { // actiavtions: bitwise representation
 
 	__disable_irq();
+
+	uint8_t temp = 0;
+	int ret = HAL_I2C_Master_Transmit(&hi2c1, 0x48<<1, &temp, 1, HAL_MAX_DELAY);
+	drum_sensor_values[0] = HAL_GetTick();
+//	if ( ret == HAL_OK ) {
+//		HAL_I2C_Master_Receive_DMA(&hi2c1, 0x48<<1, (uint8_t *) drum_i2c_buff, 8);
+//	}
+
 
 	int i = 0;
 	DrumStruct* drum = drums;

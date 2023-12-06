@@ -47,6 +47,7 @@ extern DAC_HandleTypeDef hdac;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
+extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE END EC */
 
