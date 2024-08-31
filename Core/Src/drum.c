@@ -138,14 +138,6 @@ void DrumUpdate(uint16_t activations) { // actiavtions: bitwise representation
 
 	__disable_irq();
 
-	uint8_t temp = 0;
-	int ret = HAL_I2C_Master_Transmit(&hi2c1, 0x48<<1, &temp, 1, HAL_MAX_DELAY);
-	drum_sensor_values[0] = HAL_GetTick();
-//	if ( ret == HAL_OK ) {
-//		HAL_I2C_Master_Receive_DMA(&hi2c1, 0x48<<1, (uint8_t *) drum_i2c_buff, 8);
-//	}
-
-
 	int i = 0;
 	DrumStruct* drum = drums;
 	for (; i < 4; i++, drum++) {

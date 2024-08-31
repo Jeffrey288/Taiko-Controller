@@ -1,6 +1,6 @@
 ../Core/Src/drum.c:16:6:DrumInit	640	static
 ../Core/Src/drum.c:67:6:DrumThreshWrite	616	static
 ../Core/Src/drum.c:87:6:DrumCalibrate	96	static
-../Core/Src/drum.c:137:6:DrumUpdate	40	static,ignoring_inline_asm
-../Core/Src/drum.c:178:6:LCD_DrumCalibration	72	static
-../Core/Src/drum.c:200:6:ButtonPad_DrumCalibration	16	static
+../Core/Src/drum.c:137:6:DrumUpdate	24	static,ignoring_inline_asm
+../Core/Src/drum.c:170:6:LCD_DrumCalibration	72	static
+../Core/Src/drum.c:192:6:ButtonPad_DrumCalibration	16	static

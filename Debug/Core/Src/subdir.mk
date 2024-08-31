@@ -5,6 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Core/Src/adc.c \
 ../Core/Src/audio.c \
 ../Core/Src/button.c \
 ../Core/Src/drum.c \
@@ -18,6 +19,7 @@ C_SRCS += \
 ../Core/Src/touch.c 
 
 OBJS += \
+./Core/Src/adc.o \
 ./Core/Src/audio.o \
 ./Core/Src/button.o \
 ./Core/Src/drum.o \
@@ -31,6 +33,7 @@ OBJS += \
 ./Core/Src/touch.o 
 
 C_DEPS += \
+./Core/Src/adc.d \
 ./Core/Src/audio.d \
 ./Core/Src/button.d \
 ./Core/Src/drum.d \
@@ -51,7 +54,7 @@ Core/Src/%.o Core/Src/%.su: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/audio.d ./Core/Src/audio.o ./Core/Src/audio.su ./Core/Src/button.d ./Core/Src/button.o ./Core/Src/button.su ./Core/Src/drum.d ./Core/Src/drum.o ./Core/Src/drum.su ./Core/Src/lcd.d ./Core/Src/lcd.o ./Core/Src/lcd.su ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su ./Core/Src/touch.d ./Core/Src/touch.o ./Core/Src/touch.su
+	-$(RM) ./Core/Src/adc.d ./Core/Src/adc.o ./Core/Src/adc.su ./Core/Src/audio.d ./Core/Src/audio.o ./Core/Src/audio.su ./Core/Src/button.d ./Core/Src/button.o ./Core/Src/button.su ./Core/Src/drum.d ./Core/Src/drum.o ./Core/Src/drum.su ./Core/Src/lcd.d ./Core/Src/lcd.o ./Core/Src/lcd.su ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f1xx_hal_msp.d ./Core/Src/stm32f1xx_hal_msp.o ./Core/Src/stm32f1xx_hal_msp.su ./Core/Src/stm32f1xx_it.d ./Core/Src/stm32f1xx_it.o ./Core/Src/stm32f1xx_it.su ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f1xx.d ./Core/Src/system_stm32f1xx.o ./Core/Src/system_stm32f1xx.su ./Core/Src/touch.d ./Core/Src/touch.o ./Core/Src/touch.su
 
 .PHONY: clean-Core-2f-Src
 
