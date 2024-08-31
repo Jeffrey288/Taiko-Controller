@@ -29,6 +29,7 @@
 #include "audio.h"
 #include "button.h"
 #include "usb_device.h"
+#include "adc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -172,10 +173,54 @@ uint32_t audio_interrupt_counts = 0;
 uint32_t audio_interrupt_start_tick = 0;
 uint32_t mix_interrupt_counts = 0;
 uint32_t mix_interrupt_start_tick = 0;
+
+int16_t reading;
+int16_t voltage[4];
+int16_t max_reading[4];
+
+int16_t errors[4];
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		drum_interrupt_counts++;
 		DrumUpdate(0);
+
+
+		uint8_t ADSConfig[3] = {0x01,
+							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
+								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
+		uint8_t ADSWrite[1] = {0x00};
+		uint8_t ADSReceive[2];
+//		__disable_irq();
+		for (int i = 0; i < 4; i++){
+			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
+
+			int temp;
+			errors[1] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
+//			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
+			errors[2] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
+//			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
+//			HAL_Delay(20);
+
+			errors[3] = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
+//			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
+			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
+
+//			ADS1115_config[0] = ADS1115_OS | ain_pin_addr[i] | ADS1115_pga | ADS1115_MODE;
+//			ADS1115_config[1] = ADS1115_dataRate | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT| ADS1115_COMP_QUE;
+//
+//			if(HAL_I2C_Mem_Write(&ADS1115_I2C_Handler, (uint16_t) (ADS1115_devAddress << 1), ADS1115_CONFIG_REG, 1, ADS1115_config, 2, ADS1115_TIMEOUT) == HAL_OK){
+//
+//				if(HAL_I2C_Mem_Read(&ADS1115_I2C_Handler, (uint16_t) ((ADS1115_devAddress << 1) | 0x1), ADS1115_CONVER_REG, 1, ADS1115_rawValue, 2, ADS1115_TIMEOUT) == HAL_OK){
+//
+//					voltage[i] = (float) (((int16_t) (ADS1115_rawValue[0] << 8) | ADS1115_rawValue[1]) * ADS1115_voltCoef);
+//
+//				}
+//
+//			}
+
+
+		}
+//		__enable_irq();
 
 //		if (drum_interrupt_counts % 2 == 0) {
 
@@ -294,18 +339,25 @@ int main(void)
 
 	DrumInit();
 
-	// interrupt stuff
-//	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+
+	TIM3->PSC = 720 - 1;
+	TIM3->ARR = 50 * 50 - 1; // 400Hz
+	HAL_TIM_Base_Start_IT(&htim3);
+  	drum_interrupt_start_tick = HAL_GetTick();
 //
-//	HAL_TIM_Base_Start_IT(&htim3);
-//  	drum_interrupt_start_tick = HAL_GetTick();
-//
+//  	TIM4->PSC = 0;
+//	TIM4->ARR = 1499; // 48000Hz
 //	HAL_TIM_Base_Start(&htim2);
 //	__HAL_TIM_ENABLE_IT(&htim2, TIM_IT_UPDATE);
 //  	audio_interrupt_start_tick = HAL_GetTick();
 //
 //  	HAL_TIM_Base_Start_IT(&htim4);
+//  	TIM4->PSC = 0;
+//  	TIM4->ARR = 499; // 96Hz
+//  	HAL_TIM_Base_Start_IT(&htim4); // runs off of TIM2
 //	mix_interrupt_start_tick = HAL_GetTick();
+
 
   /* USER CODE END 2 */
 
@@ -318,74 +370,16 @@ int main(void)
 	int num_hits = 0;
 	int hit_state = 0;
 
-#define ADS1115_ADDRESS 0x48
-unsigned char ADSwrite[6];
-int16_t reading;
-int16_t voltage[4];
-//const float voltageConv = 6.114 / 32768.0;
-
-	uint8_t ADS1115_devAddress = 0b1001000;	// 7 bit address, without R/W' bit.
-
-	I2C_HandleTypeDef ADS1115_I2C_Handler;	// HAL I2C handler store variable.
-
-	/* Definitions */
-	#define ADS1115_OS (0b1 << 7) // Default
-
-	#define ADS1115_MUX_AIN0 (0b100 << 4)		// Analog input 1
-	#define ADS1115_MUX_AIN1 (0b101 << 4)		// Analog input 2
-	#define ADS1115_MUX_AIN2 (0b110 << 4)		// Analog input 3
-	#define ADS1115_MUX_AIN3 (0b111 << 4)		// Analog input 4
-	const uint16_t ADS1115_MUX[] = {ADS1115_MUX_AIN0, ADS1115_MUX_AIN1, ADS1115_MUX_AIN2, ADS1115_MUX_AIN3};
-
-	#define ADS1115_PGA_TWOTHIRDS 	(0b000 << 1) 		// 2/3x Gain	-- 0.1875 mV by one bit		MAX: +- VDD + 0.3V
-	#define ADS1115_PGA_ONE			(0b001 << 1) 		// 1x Gain		-- 0.125 mV by one bit		MAX: +- VDD + 0.3V
-	#define ADS1115_PGA_TWO			(0b010 << 1) 		// 2x Gain		-- 0.0625 mV by one bit		MAX: +- 2.048 V
-	#define ADS1115_PGA_FOUR		(0b011 << 1) 		// 4x Gain		-- 0.03125 mV by one bit	MAX: +- 1.024 V
-	#define ADS1115_PGA_EIGHT		(0b100 << 1) 		// 8x Gain		-- 0.015625 mV by one bit	MAX: +- 0.512 V
-	#define ADS1115_PGA_SIXTEEN		(0b111 << 1) 		// 16x Gain		-- 0.0078125 mV by one bit	MAX: +- 0.256 V
-
-	#define ADS1115_MODE_SINGLE (0b1)
-	#define ADS1115_MODE_CONTINUOUS (0b0)
-
-	#define ADS1115_DATA_RATE_8		(0b000 << 5)			// 8SPS
-	#define ADS1115_DATA_RATE_16	(0b001 << 5)			// 16SPS
-	#define ADS1115_DATA_RATE_32	(0b010 << 5)			// 32SPS
-	#define ADS1115_DATA_RATE_64	(0b011 << 5)			// 64SPS
-	#define ADS1115_DATA_RATE_128	(0b100 << 5)			// 128SPS
-	#define ADS1115_DATA_RATE_250	(0b101 << 5)			// 250SPS
-	#define ADS1115_DATA_RATE_475	(0b110 << 5)			// 475SPS
-	#define ADS1115_DATA_RATE_860	(0b111 << 5)			// 860SPS
-
-	#define ADS1115_COMP_MODE 	(0b0 << 4) // Default
-	#define ADS1115_COMP_POL 	(0b0 << 3) // Default
-	#define ADS1115_COMP_LAT 	(0b0 << 2) // Default
-	#define ADS1115_COMP_QUE 	(0b11)	   // Default
-
-	/* ADS1115 register configurations */
-	#define ADS1115_CONVER_REG 0x0
-	#define ADS1115_CONFIG_REG 0x1
-
-	/* TIMEOUT */
-	#define ADS1115_TIMEOUT 1 // Timeout for HAL I2C functions.
 
 
-	uint16_t ADS1115_dataRate = ADS1115_DATA_RATE_128; // Default
-	uint16_t ADS1115_pga = ADS1115_PGA_TWO; // Default
-	uint16_t ADS1115_port = ADS1115_MUX_AIN0; // Default
-
-	uint8_t ADS1115_config[2];
-	uint8_t ADS1115_rawValue[2];
-	float ADS1115_voltCoef; // Voltage coefficient.
-
-
-	if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t) (ADS1115_devAddress << 1), 5, ADS1115_TIMEOUT) == HAL_OK) {
+	if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t) (ADS1115_ADDRESS << 1), 5, 1) == HAL_OK) {
 //		return HAL_OK;
 	} else {
 //		return HAL_ERROR;
 		while (1) {}
 	}
 
-	uint16_t max_reading[4];
+
 	uint32_t reset_ticks;
 	while (1) {
 
@@ -402,9 +396,6 @@ int16_t voltage[4];
 			}
 		}
 
-
-
-
 		int r = 0;
 		if (HAL_GetTick() - tft_last_ticks > 10) {
 
@@ -412,54 +403,56 @@ int16_t voltage[4];
 //			HAL_UART_Receive(&huart1, &data, 1, 10);
 
 //			AddDrum((HAL_GetTick() / 1000) % 2);
-//			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
-//					HAL_GetTick() / (1000 * 60 * 60),
-//					HAL_GetTick() / (1000 * 60) % 60,
-//					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
-//					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
-//					Rx_length, btn_callbacks);
+			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
+					HAL_GetTick() / (1000 * 60 * 60),
+					HAL_GetTick() / (1000 * 60) % 60,
+					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
+					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
+					Rx_length, btn_callbacks);
 			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
 ////			LCD_DrumCalibration(&r);
 			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
+			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
 //			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
 			//			LCD_DrumCalibration(&r);
 			tft_last_ticks = HAL_GetTick();
 		}
 
-		uint8_t ADSConfig[3] = {0x01,
-							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
-								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
-		uint8_t ADSWrite[1] = {0x00};
-		uint8_t ADSReceive[2];
-		for (int i = 0; i < 4; i++){
-			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
-
-			int temp;
-			temp = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
-			temp = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
-			HAL_Delay(20);
-
-			temp = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
-			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
-
-//			ADS1115_config[0] = ADS1115_OS | ain_pin_addr[i] | ADS1115_pga | ADS1115_MODE;
-//			ADS1115_config[1] = ADS1115_dataRate | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT| ADS1115_COMP_QUE;
 //
-//			if(HAL_I2C_Mem_Write(&ADS1115_I2C_Handler, (uint16_t) (ADS1115_devAddress << 1), ADS1115_CONFIG_REG, 1, ADS1115_config, 2, ADS1115_TIMEOUT) == HAL_OK){
+//		uint8_t ADSConfig[3] = {0x01,
+//							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
+//								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
+//		uint8_t ADSWrite[1] = {0x00};
+//		uint8_t ADSReceive[2];
+//		for (int i = 0; i < 4; i++){
+//			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
 //
-//				if(HAL_I2C_Mem_Read(&ADS1115_I2C_Handler, (uint16_t) ((ADS1115_devAddress << 1) | 0x1), ADS1115_CONVER_REG, 1, ADS1115_rawValue, 2, ADS1115_TIMEOUT) == HAL_OK){
+//			int temp;
+//			temp = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
+//			temp = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
+//			HAL_Delay(20);
 //
-//					voltage[i] = (float) (((int16_t) (ADS1115_rawValue[0] << 8) | ADS1115_rawValue[1]) * ADS1115_voltCoef);
+//			temp = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
+//			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
 //
-//				}
+////			ADS1115_config[0] = ADS1115_OS | ain_pin_addr[i] | ADS1115_pga | ADS1115_MODE;
+////			ADS1115_config[1] = ADS1115_dataRate | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT| ADS1115_COMP_QUE;
+////
+////			if(HAL_I2C_Mem_Write(&ADS1115_I2C_Handler, (uint16_t) (ADS1115_devAddress << 1), ADS1115_CONFIG_REG, 1, ADS1115_config, 2, ADS1115_TIMEOUT) == HAL_OK){
+////
+////				if(HAL_I2C_Mem_Read(&ADS1115_I2C_Handler, (uint16_t) ((ADS1115_devAddress << 1) | 0x1), ADS1115_CONVER_REG, 1, ADS1115_rawValue, 2, ADS1115_TIMEOUT) == HAL_OK){
+////
+////					voltage[i] = (float) (((int16_t) (ADS1115_rawValue[0] << 8) | ADS1115_rawValue[1]) * ADS1115_voltCoef);
+////
+////				}
+////
+////			}
 //
-//			}
-
-
-		}
+//
+//		}
 
 
 //		keyboardhid.MODIFIER = 0x02;  // left Shift
