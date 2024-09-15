@@ -307,10 +307,10 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  UpdateHIDClassConfig(&Keyboard_ClassConfig);
-  UpdateHIDItfConfig(&Keyboard_ItfConfig);
-//  UpdateHIDClassConfig(&Switch_ClassConfig);
-//UpdateHIDItfConfig(&Switch_ItfConfig);
+//  UpdateHIDClassConfig(&Keyboard_ClassConfig);
+//  UpdateHIDItfConfig(&Keyboard_ItfConfig);
+  UpdateHIDClassConfig(&Switch_ClassConfig);
+  UpdateHIDItfConfig(&Switch_ItfConfig);
   MX_USB_DEVICE_Init();
   /* USER CODE END Init */
 
@@ -470,21 +470,21 @@ int main(void)
 //			tft_last_ticks = HAL_GetTick();
 //		}
 
-
-//		keyboardhid.MODIFIER = 0x02;  // left Shift
-		for (int i = 0; i < 26; i++) {
-			keyboardhid.KEYCODE1 = 0x04 + i;  // press 'a'
-			temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-			HAL_Delay (10);
-		}
-
-//		switchhid.Button = 0x04;
-//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
-//		HAL_Delay (20);
 //
-//		switchhid.Button = 0x00;
-//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
-//		HAL_Delay (20);
+////		keyboardhid.MODIFIER = 0x02;  // left Shift
+//		for (int i = 0; i < 26; i++) {
+//			keyboardhid.KEYCODE1 = 0x04 + i;  // press 'a'
+//			temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//			HAL_Delay (10);
+//		}
+
+		switchhid.Button = 0x04;
+		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+		HAL_Delay (20);
+
+		switchhid.Button = 0x00;
+		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+		HAL_Delay (20);
 
 //		keyboardhid.MODIFIER = 0x00;  // shift release
 //		keyboardhid.KEYCODE1 = 0x05;  // release key

@@ -7,7 +7,7 @@
 ../Core/Src/main.c:252:6:HAL_GPIO_EXTI_Callback	24	static
 ../Core/Src/main.c:259:6:HAL_I2C_MasterRxCpltCallback	24	static
 ../Core/Src/main.c:271:6:HAL_UART_RxCpltCallback	24	static
-../Core/Src/main.c:299:5:main	40	static
+../Core/Src/main.c:299:5:main	32	static
 ../Core/Src/main.c:568:6:SystemClock_Config	96	static
 ../Core/Src/main.c:616:13:MX_ADC1_Init	24	static
 ../Core/Src/main.c:690:13:MX_DAC_Init	16	static

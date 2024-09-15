@@ -106,21 +106,21 @@ static void UpdateHIDClassConfig(HID_ClassConfigStruct* cfg) {
 
 // To simplify things, we assume that we only use
 // one in and out endpoint.
-#define CUSTOM_HID_EPIN_ADDR                 0x81U
-#define CUSTOM_HID_EPIN_SIZE                 0x02U
-
-#define CUSTOM_HID_EPOUT_ADDR                0x01U
-#define CUSTOM_HID_EPOUT_SIZE                0x02U
-
+//#define CUSTOM_HID_EPIN_ADDR                 0x81U
+//#define CUSTOM_HID_EPIN_SIZE                 0x02U
 //
-//#define CUSTOM_HID_EPIN_ADDR                 0x81
-////#define CUSTOM_HID_EPIN_SIZE                 0x04
-//#define CUSTOM_HID_EPIN_SIZE                 0x40  // for Nintendo Switch
-//
-////define the OUT Endpoint
-//#define CUSTOM_HID_EPOUT_ADDR              0x02
-////#define CUSTOM_HID_EPOUT_SIZE              0x01
-//#define CUSTOM_HID_EPOUT_SIZE              0x40    // for Nintendo Switch
+//#define CUSTOM_HID_EPOUT_ADDR                0x01U
+//#define CUSTOM_HID_EPOUT_SIZE                0x02U
+
+
+#define CUSTOM_HID_EPIN_ADDR                 0x81
+//#define CUSTOM_HID_EPIN_SIZE                 0x04
+#define CUSTOM_HID_EPIN_SIZE                 0x40  // for Nintendo Switch
+
+//define the OUT Endpoint
+#define CUSTOM_HID_EPOUT_ADDR              0x02
+//#define CUSTOM_HID_EPOUT_SIZE              0x01
+#define CUSTOM_HID_EPOUT_SIZE              0x40    // for Nintendo Switch
 
 
 // DO NOT MODIFY THE BELOW
