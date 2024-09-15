@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "fatfs.h"
 #include "usb_device.h"
 
@@ -30,6 +31,8 @@
 #include "button.h"
 #include "usb_device.h"
 #include "adc.h"
+#include "task.h"
+#include "descriptor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +61,7 @@ I2C_HandleTypeDef hi2c1;
 
 SD_HandleTypeDef hsd;
 
+SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
 TIM_HandleTypeDef htim2;
@@ -66,6 +70,8 @@ TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
 
+osThreadId defaultTaskHandle;
+osThreadId adcTaskHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -83,6 +89,10 @@ static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_SPI1_Init(void);
+void StartDefaultTask(void const * argument);
+void StartADCTask(void const * argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -312,7 +322,6 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
-  MX_USB_DEVICE_Init();
   MX_SDIO_SD_Init();
   MX_FATFS_Init();
   MX_DAC_Init();
@@ -320,6 +329,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM4_Init();
   MX_USART1_UART_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_ADCEx_Calibration_Start(&hadc1);
@@ -332,19 +342,19 @@ int main(void)
 	LCD_FillScreen(PINK);
 
   	// Setting the clock divider somehow helps :D
-  	FRESULT fresult = f_mount(&fs, "/", 1);
-  	if (fresult != FR_OK) {
-  		LCD_Print(0, 19, "Error: f_mount (%d)", fresult); while (1);
-  	}
+//  	FRESULT fresult = f_mount(&fs, "/", 1);
+//  	if (fresult != FR_OK) {
+//  		LCD_Print(0, 19, "Error: f_mount (%d)", fresult); while (1);
+//  	}
 
-	DrumInit();
+//	DrumInit();
 
-	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-
-	TIM3->PSC = 720 - 1;
-	TIM3->ARR = 50 * 50 - 1; // 400Hz
-	HAL_TIM_Base_Start_IT(&htim3);
-  	drum_interrupt_start_tick = HAL_GetTick();
+//	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+//
+//	TIM3->PSC = 720 - 1;
+//	TIM3->ARR = 50 * 50 - 1; // 400Hz
+//	HAL_TIM_Base_Start_IT(&htim3);
+//  	drum_interrupt_start_tick = HAL_GetTick();
 //
 //  	TIM4->PSC = 0;
 //	TIM4->ARR = 1499; // 48000Hz
@@ -361,6 +371,39 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* definition and creation of defaultTask */
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+  /* definition and creation of adcTask */
+  osThreadDef(adcTask, StartADCTask, osPriorityRealtime, 0, 128);
+  adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+//  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
@@ -729,6 +772,44 @@ static void MX_SDIO_SD_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_16BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -947,13 +1028,13 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
   /* DMA2_Channel3_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Channel3_IRQn);
   /* DMA2_Channel4_5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Channel4_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Channel4_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Channel4_5_IRQn);
 
 }
@@ -1021,16 +1102,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
@@ -1038,6 +1119,195 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void const * argument)
+{
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
+  /* USER CODE BEGIN 5 */
+
+	long last_ticks = 0;
+	long tft_last_ticks = 0;
+	long ticks = 0;
+	int num_hits = 0;
+	int hit_state = 0;
+	int reset_ticks = 0;
+  /* Infinite loop */
+  for(;;)
+  {
+//	  osDelay(1);
+
+
+		for (int i = 0; i < 4; i++) {
+			if (voltage[i] > max_reading[i]) {
+				max_reading[i] = voltage[i];
+			}
+		}
+
+		if (HAL_GetTick() - reset_ticks > 200) {
+			reset_ticks = HAL_GetTick();
+//			for (int i = 0; i < 4; i++) {
+//				max_reading[i] = 0;
+//			}
+			 HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
+		}
+
+		int r = 0;
+////		if (HAL_GetTick() - tft_last_ticks > 10) {
+//
+////			uint8_t data;
+////			HAL_UART_Receive(&huart1, &data, 1, 10);
+//
+////			AddDrum((HAL_GetTick() / 1000) % 2);
+//		__disable_irq();
+//		UBaseType_t uxSavedInterruptStatus;
+//		 uxSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
+					HAL_GetTick() / (1000 * 60 * 60),
+					HAL_GetTick() / (1000 * 60) % 60,
+					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
+					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
+					Rx_length, btn_callbacks);
+//		LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld",
+//							HAL_GetTick() / (1000 * 60 * 60),
+//							HAL_GetTick() / (1000 * 60) % 60,
+//							(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000);
+//		LCD_Print(0, r++, "penis");
+			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
+//			  taskEXIT_CRITICAL_FROM_ISR( uxSavedInterruptStatus );
+//			__enable_irq();
+//////			LCD_DrumCalibration(&r);
+			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
+//			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
+////			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
+//			//			LCD_DrumCalibration(&r);
+//			tft_last_ticks = HAL_GetTick();
+//		}
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartADCTask */
+/**
+* @brief Function implementing the adcTask thread.
+* @param argument: Not used
+* @retval None
+*/
+
+
+typedef union
+{
+    struct
+    {
+        volatile unsigned char    RESV  	  :1;   //it does not matter 0 or 1
+        volatile unsigned char    NOP         :2;
+        volatile unsigned char    PULLUP      :1;
+        volatile unsigned char    TS_MODE     :1;
+        volatile unsigned char    DR          :3;
+        volatile unsigned char    MODE        :1;
+        volatile unsigned char    PGA         :3;
+        volatile unsigned char    MUX         :3;
+        volatile unsigned char    OS          :1;   //high
+    } stru;
+    volatile unsigned int  word;
+    volatile unsigned char byte[2];
+} ADS_InitTypeDef;
+
+
+//ADS1118 Configuration Registers
+ADS_InitTypeDef adsConfigReg;
+
+/* USER CODE END Header_StartADCTask */
+void StartADCTask(void const * argument)
+{
+  /* USER CODE BEGIN StartADCTask */
+	//ADS Structure variable
+//		ADS_InitTypeDef ConfigReg;
+
+		//We will use it as single-shot mode
+		adsConfigReg.stru.OS				=	0x1;   //high
+		// 0x4 enables AIN0 , 0x5 enables AIN1,0x6 enables AIN2 and 0x7 enables AIN3 .
+		adsConfigReg.stru.MUX			=	0x4;
+		//Programmable Gain amplifier
+		adsConfigReg.stru.PGA      = 0x1;		//  FSR 4.096V
+		//Continuous mode or single-shot mode
+		adsConfigReg.stru.MODE			=	0x0;
+		//Data Rate register
+		adsConfigReg.stru.DR       = 0x4;
+		//If you want to use this chip as a temperature sensor set this as 1.
+		adsConfigReg.stru.TS_MODE	=	0x0;
+		//Enable built-in pull-up resistors.
+		adsConfigReg.stru.PULLUP		= 0x1;
+		//Command mode. Set this always as 0x01.
+		adsConfigReg.stru.NOP			=	0x1;
+		//Reserved register. It does not matter this register is 1 or 0.
+		adsConfigReg.stru.RESV			= 0x1;
+
+//		adsConfigReg.word=ConfigReg->word;
+
+//		HAL_Delay(100);
+
+
+  /* Infinite loop */
+  for(;;)
+  {
+	  drum_interrupt_counts++;
+	  osDelay(3);
+
+	  for (int i = 0; i < 4; i++){
+		  voltage[i];
+	  }
+
+
+
+
+
+//	  		uint8_t ADSConfig[3] = {0x01,
+//	  							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
+//	  								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
+//	  		uint8_t ADSWrite[1] = {0x00};
+//	  		uint8_t ADSReceive[2];
+//	  //		__disable_irq();
+//	  		for (int i = 0; i < 4; i++){
+//	  			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
+//
+//	  			int temp;
+//	  			errors[1] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
+//	  //			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
+//	  			errors[2] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
+//	  //			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
+//	  //			HAL_Delay(20);
+//
+//	  			errors[3] = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
+//	  //			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
+//	  			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
+//	  			osDelay(10);
+
+	  //			ADS1115_config[0] = ADS1115_OS | ain_pin_addr[i] | ADS1115_pga | ADS1115_MODE;
+	  //			ADS1115_config[1] = ADS1115_dataRate | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT| ADS1115_COMP_QUE;
+	  //
+	  //			if(HAL_I2C_Mem_Write(&ADS1115_I2C_Handler, (uint16_t) (ADS1115_devAddress << 1), ADS1115_CONFIG_REG, 1, ADS1115_config, 2, ADS1115_TIMEOUT) == HAL_OK){
+	  //
+	  //				if(HAL_I2C_Mem_Read(&ADS1115_I2C_Handler, (uint16_t) ((ADS1115_devAddress << 1) | 0x1), ADS1115_CONVER_REG, 1, ADS1115_rawValue, 2, ADS1115_TIMEOUT) == HAL_OK){
+	  //
+	  //					voltage[i] = (float) (((int16_t) (ADS1115_rawValue[0] << 8) | ADS1115_rawValue[1]) * ADS1115_voltCoef);
+	  //
+	  //				}
+	  //
+	  //			}
+
+
+//	  		}
+  }
+  /* USER CODE END StartADCTask */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
