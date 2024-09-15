@@ -1,5 +1,5 @@
-#ifndef __USB_CUSTOMHID_H
-#define __USB_CUSTOMHID_H
+#ifndef __DESCRIPTORS_H
+#define __DESCRIPTORS_H
 
 #include "usbd_customhid.h"
 #include "usbd_custom_hid_if.h"
@@ -25,15 +25,16 @@
 //} HID_ItfConfigStruct;
 //
 
-const uint16_t Keyboard_size_CfgFSDesc = 34;
-const uint16_t Keyboard_size_Desc = 9;
-const uint16_t Keyboard_size_ReportDesc = 63;
+// Keyboard
+#define Keyboard_size_CfgFSDesc 	(34)
+#define Keyboard_size_Desc 			(9)
+#define Keyboard_size_ReportDesc 	(63)
 
 /* USB HID device Configuration Descriptor */
 __ALIGN_BEGIN static uint8_t Keyboard_CfgDesc[Keyboard_size_CfgFSDesc] __ALIGN_END = {
 	0x09, /* bLength: Configuration Descriptor size */
 	USB_DESC_TYPE_CONFIGURATION, /* bDescriptorType: Configuration */
-	USB_CUSTOM_HID_CONFIG_DESC_SIZ,
+	Keyboard_size_CfgFSDesc,
 	/* wTotalLength: Bytes returned */
 	0x00,
 	0x01,         /*bNumInterfaces: 1 interface*/
@@ -143,6 +144,113 @@ const HID_ClassConfigStruct Keyboard_ClassConfig = {
 const HID_ItfConfigStruct Keyboard_ItfConfig = {
 	Keyboard_ReportDesc_FS,
 	Keyboard_size_ReportDesc,
+};
+
+// Nintendo Switch
+// Reference: https://github.com/soonuse/stm32_joystick_for_nintendo_switch
+#define Switch_size_CfgFSDesc 		(41)
+#define Switch_size_Desc 			(9)
+#define Switch_size_ReportDesc 		(86)
+
+/* USB HID device Configuration Descriptor */
+__ALIGN_BEGIN static uint8_t Switch_CfgDesc[Switch_size_CfgFSDesc] __ALIGN_END = {
+
+	0x09, /* bLength: Configuration Descriptor size */
+	USB_DESC_TYPE_CONFIGURATION, /* bDescriptorType: Configuration */
+	Switch_size_CfgFSDesc,
+	/* wTotalLength: Bytes returned */
+	0x00,
+	0x01,         /*bNumInterfaces: 1 interface*/
+	0x01,         /*bConfigurationValue: Configuration value*/
+	0x00,         /*iConfiguration: Index of string descriptor describing
+	the configuration*/
+	0b11100000,    /*bmAttributes */
+	0xFA,         /*MaxPower 500 mA: this current is used for detecting Vbus*/
+
+	/************** Descriptor of CUSTOM HID interface ****************/
+	/* 09 */
+	0x09,         /*bLength: Interface Descriptor size*/
+	USB_DESC_TYPE_INTERFACE,/*bDescriptorType: Interface descriptor type*/
+	0x00,         /*bInterfaceNumber: Number of Interface*/
+	0x00,         /*bAlternateSetting: Alternate setting*/
+	0x02,         /*bNumEndpoints*/
+	0x03,         /*bInterfaceClass: CUSTOM_HID*/
+	0x00,         /*bInterfaceSubClass : 1=BOOT, 0=no boot*/
+	0x00,         /*nInterfaceProtocol : 0=none, 1=keyboard, 2=mouse*/
+	0,            /*iInterface: Index of string descriptor*/
+
+	/******************** Descriptor of CUSTOM_HID *************************/
+	/* 18 */
+	0x09,         /*bLength: CUSTOM_HID Descriptor size*/
+	CUSTOM_HID_DESCRIPTOR_TYPE, /*bDescriptorType: CUSTOM_HID*/
+	0x11,         /*bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number*/
+	0x01,
+	0x00,         /*bCountryCode: Hardware target country*/
+	0x01,         /*bNumDescriptors: Number of CUSTOM_HID class descriptors to follow*/
+	0x22,         /*bDescriptorType*/
+	Switch_size_ReportDesc,/*wItemLength: Total length of Report descriptor*/
+	0x00,
+
+	/******************** Descriptor of Custom HID endpoints ********************/
+	/* 27 */
+	0x07,          /*bLength: Endpoint Descriptor size*/
+	USB_DESC_TYPE_ENDPOINT, /*bDescriptorType:*/
+
+	CUSTOM_HID_EPIN_ADDR,     /*bEndpointAddress: Endpoint Address (IN)*/
+	0x03,          /*bmAttributes: Interrupt endpoint*/
+	CUSTOM_HID_EPIN_SIZE, /*wMaxPacketSize: 2 Byte max */
+	0x00,
+	0x01,   /*bInterval: Polling Interval */
+	/* 34 */
+
+	0x07,          /*bLength: Endpoint Descriptor size*/
+	USB_DESC_TYPE_ENDPOINT, /*bDescriptorType:*/
+
+	CUSTOM_HID_EPOUT_ADDR,     /*bEndpointAddress: Endpoint Address (OUT)*/
+	0x03,          /*bmAttributes: Interrupt endpoint*/
+	CUSTOM_HID_EPOUT_SIZE, /*wMaxPacketSize: 2 Byte max */
+	0x00,
+	0x05,   	/*bInterval: Polling Interval */
+	/* 41 */
+
+};
+
+/* USB HID device Configuration Descriptor */
+__ALIGN_BEGIN static uint8_t Switch_Desc[Switch_size_Desc]  __ALIGN_END  =
+{
+	0x09,         /*bLength: HID Descriptor size*/
+	CUSTOM_HID_DESCRIPTOR_TYPE, /*bDescriptorType: HID*/
+	0x11,         /*bcdHID: HID Class Spec release number*/
+	0x01,
+	0x00,         /*bCountryCode: Hardware target country*/
+	0x01,         /*bNumDescriptors: Number of HID class descriptors to follow*/
+	0x22,         /*bDescriptorType*/
+	Switch_size_ReportDesc,/*wItemLength: Total length of Report descriptor*/
+	0x00,
+};
+
+__ALIGN_BEGIN static uint8_t Switch_ReportDesc_FS[Switch_size_ReportDesc] __ALIGN_END = {
+	0x05, 0x01, 0x09, 0x05,   0xa1, 0x01, 0x15, 0x00,   0x25, 0x01, 0x35, 0x00,   0x45, 0x01, 0x75, 0x01,
+	0x95, 0x10, 0x05, 0x09,   0x19, 0x01, 0x29, 0x10,   0x81, 0x02, 0x05, 0x01,   0x25, 0x07, 0x46, 0x3b,
+	0x01, 0x75, 0x04, 0x95,   0x01, 0x65, 0x14, 0x09,   0x39, 0x81, 0x42, 0x65,   0x00, 0x95, 0x01, 0x81,
+	0x01, 0x26, 0xff, 0x00,   0x46, 0xff, 0x00, 0x09,   0x30, 0x09, 0x31, 0x09,   0x32, 0x09, 0x35, 0x75,
+	0x08, 0x95, 0x04, 0x81,   0x02, 0x06, 0x00, 0xff,   0x09, 0x20, 0x95, 0x01,   0x81, 0x02, 0x0a, 0x21,
+	0x26, 0x95, 0x08, 0x91,   0x02, 0xc0,
+};
+
+const HID_ClassConfigStruct Switch_ClassConfig = {
+	Switch_CfgDesc,
+	Switch_CfgDesc,
+	Switch_CfgDesc,
+	Switch_size_CfgFSDesc,
+
+	Switch_Desc,
+	Switch_size_Desc,
+};
+
+const HID_ItfConfigStruct Switch_ItfConfig = {
+	Switch_ReportDesc_FS,
+	Switch_size_ReportDesc,
 };
 
 

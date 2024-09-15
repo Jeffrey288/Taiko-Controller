@@ -131,42 +131,6 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
   * @{
   */
 
-/* Private functions ---------------------------------------------------------*/
-
-/**
-  * @brief  Initializes the CUSTOM HID media low layer
-  * @retval USBD_OK if all operations are OK else USBD_FAIL
-  */
-static int8_t CUSTOM_HID_Init_FS(void)
-{
-  /* USER CODE BEGIN 4 */
-  return (USBD_OK);
-  /* USER CODE END 4 */
-}
-
-/**
-  * @brief  DeInitializes the CUSTOM HID media low layer
-  * @retval USBD_OK if all operations are OK else USBD_FAIL
-  */
-static int8_t CUSTOM_HID_DeInit_FS(void)
-{
-  /* USER CODE BEGIN 5 */
-  return (USBD_OK);
-  /* USER CODE END 5 */
-}
-
-/**
-  * @brief  Manage the CUSTOM HID class events
-  * @param  event_idx: Event index
-  * @param  state: Event state
-  * @retval USBD_OK if all operations are OK else USBD_FAIL
-  */
-static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
-{
-  /* USER CODE BEGIN 6 */
-  return (USBD_OK);
-  /* USER CODE END 6 */
-}
 
 /* USER CODE BEGIN 7 */
 /**

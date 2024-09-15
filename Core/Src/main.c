@@ -307,6 +307,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  UpdateHIDClassConfig(&Keyboard_ClassConfig);
+  UpdateHIDItfConfig(&Keyboard_ItfConfig);
+//  UpdateHIDClassConfig(&Switch_ClassConfig);
+//UpdateHIDItfConfig(&Switch_ItfConfig);
+  MX_USB_DEVICE_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -331,6 +336,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
+
+
 
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_UART_Receive_IT (&huart1, Rx_data, 1);
@@ -389,77 +396,101 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+//  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
+//  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of adcTask */
-  osThreadDef(adcTask, StartADCTask, osPriorityRealtime, 0, 128);
-  adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
+//  osThreadDef(adcTask, StartADCTask, osPriorityRealtime, 0, 128);
+//  adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
 //  /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
-  osKernelStart();
+//  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
 
 	long last_ticks = 0;
 	long tft_last_ticks = 0;
 	long ticks = 0;
 	int num_hits = 0;
 	int hit_state = 0;
-
-
-
-	if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t) (ADS1115_ADDRESS << 1), 5, 1) == HAL_OK) {
-//		return HAL_OK;
-	} else {
-//		return HAL_ERROR;
-		while (1) {}
-	}
+//
+//	if (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t) (ADS1115_ADDRESS << 1), 5, 1) == HAL_OK) {
+////		return HAL_OK;
+//	} else {
+////		return HAL_ERROR;
+//		while (1) {}
+//	}
 
 
 	uint32_t reset_ticks;
+	uint16_t temp = 0;
 	while (1) {
+//
+//		for (int i = 0; i < 4; i++) {
+//			if (voltage[i] > max_reading[i]) {
+//				max_reading[i] = voltage[i];
+//			}
+//		}
+//
+//		if (HAL_GetTick() - reset_ticks > 1000) {
+//			reset_ticks = HAL_GetTick();
+//			for (int i = 0; i < 4; i++) {
+//				max_reading[i] = 0;
+//			}
+//		}
+//
+//		int r = 0;
+//		if (HAL_GetTick() - tft_last_ticks > 10) {
+//
+////			uint8_t data;
+////			HAL_UART_Receive(&huart1, &data, 1, 10);
+//
+////			AddDrum((HAL_GetTick() / 1000) % 2);
+//			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
+//					HAL_GetTick() / (1000 * 60 * 60),
+//					HAL_GetTick() / (1000 * 60) % 60,
+//					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
+//					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
+//					Rx_length, btn_callbacks);
+//			LCD_Print(0, r++, "err: %4d", temp);
+////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
+////////			LCD_DrumCalibration(&r);
+////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
+////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
+////			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
+//			//			LCD_DrumCalibration(&r);
+//			tft_last_ticks = HAL_GetTick();
+//		}
 
-		for (int i = 0; i < 4; i++) {
-			if (voltage[i] > max_reading[i]) {
-				max_reading[i] = voltage[i];
-			}
+
+//		keyboardhid.MODIFIER = 0x02;  // left Shift
+		for (int i = 0; i < 26; i++) {
+			keyboardhid.KEYCODE1 = 0x04 + i;  // press 'a'
+			temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+			HAL_Delay (10);
 		}
 
-		if (HAL_GetTick() - reset_ticks > 1000) {
-			reset_ticks = HAL_GetTick();
-			for (int i = 0; i < 4; i++) {
-				max_reading[i] = 0;
-			}
-		}
+//		switchhid.Button = 0x04;
+//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+//		HAL_Delay (20);
+//
+//		switchhid.Button = 0x00;
+//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+//		HAL_Delay (20);
 
-		int r = 0;
-		if (HAL_GetTick() - tft_last_ticks > 10) {
-
-//			uint8_t data;
-//			HAL_UART_Receive(&huart1, &data, 1, 10);
-
-//			AddDrum((HAL_GetTick() / 1000) % 2);
-			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
-					HAL_GetTick() / (1000 * 60 * 60),
-					HAL_GetTick() / (1000 * 60) % 60,
-					(HAL_GetTick() / 1000) % 60, HAL_GetTick() % 1000,
-					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
-					Rx_length, btn_callbacks);
-			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
-////			LCD_DrumCalibration(&r);
-			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
-			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
-//			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
-			//			LCD_DrumCalibration(&r);
-			tft_last_ticks = HAL_GetTick();
-		}
+//		keyboardhid.MODIFIER = 0x00;  // shift release
+//		keyboardhid.KEYCODE1 = 0x05;  // release key
+//		keyboardhid.KEYCODE2 = 0x00;  // release key
+//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//		HAL_Delay (4);
 
 //
 //		uint8_t ADSConfig[3] = {0x01,
@@ -497,17 +528,6 @@ int main(void)
 //
 //		}
 
-
-//		keyboardhid.MODIFIER = 0x02;  // left Shift
-//		keyboardhid.KEYCODE1 = 0x04;  // press 'a'
-//		keyboardhid.KEYCODE2 = 0x05;  // press 'b'
-//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-//		HAL_Delay (50);
-//
-//		keyboardhid.MODIFIER = 0x00;  // shift release
-//		keyboardhid.KEYCODE1 = 0x00;  // release key
-//		keyboardhid.KEYCODE2 = 0x00;  // release key
-//		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
 
 //		switchhid.Button = SWITCH_A | SWITCH_CAPTURE;  // left Shift
 //		USBD_HID_SendReport(&hUsbDeviceFS,  (uint8_t*) &switchhid, sizeof (switchhid));

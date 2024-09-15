@@ -1,5 +1,8 @@
 ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc/usbd_customhid.h:73:13:UpdateHIDClassConfig	16	static
-../USB_DEVICE/App/usbd_custom_hid_if.h:111:13:UpdateHIDItfConfig	32	static
+../USB_DEVICE/App/usbd_custom_hid_if.h:100:15:CUSTOM_HID_Init_FS	4	static
+../USB_DEVICE/App/usbd_custom_hid_if.h:111:15:CUSTOM_HID_DeInit_FS	4	static
+../USB_DEVICE/App/usbd_custom_hid_if.h:124:15:CUSTOM_HID_OutEvent_FS	16	static
+../USB_DEVICE/App/usbd_custom_hid_if.h:145:13:UpdateHIDItfConfig	32	static
 ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Src/usbd_customhid.c:184:17:USBD_CUSTOM_HID_Init	24	static
 ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Src/usbd_customhid.c:230:17:USBD_CUSTOM_HID_DeInit	16	static
 ../Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Src/usbd_customhid.c:258:17:USBD_CUSTOM_HID_Setup	40	static
