@@ -253,5 +253,57 @@ const HID_ItfConfigStruct Switch_ItfConfig = {
 	Switch_size_ReportDesc,
 };
 
+/**
+ *
+productName: Taiko Controller
+vendorId:    0x0F0D (3853) HORI CO., LTD.
+productId:   0x00F0 (240)
+opened:      true
+collections[0]
+  Usage: 0001:0005 (Generic Desktop > Gamepad)
+  Input reports: 0x00
+Input report 0x00
+  14 values * 1 bit (bits 0 to 13)
+    Data,Var,Abs
+    Usages: 0009:0001 (Button Button 1) to 0009:000E (Button Button 14)
+    Logical bounds: 0 to 0
+  2 bits (bits 14 to 15)
+    Cnst,Ary,Abs
+    Logical bounds: 0 to 0
+  4 bits (bits 16 to 19)
+    Data,Var,Abs,Null
+    Usage: 0001:0039 (Generic Desktop > Hat Switch)
+    Logical bounds: 0 to 7
+    Physical bounds: 0 to 315
+    Units: deg
+  4 bits (bits 20 to 23)
+    Cnst,Ary,Abs
+    Logical bounds: 0 to 0
+  8 bits (bits 24 to 31)
+    Data,Var,Abs
+    Usage: 0001:0030 (Generic Desktop > X)
+    Logical bounds: 0 to 255
+    Physical bounds: 0 to 255
+  8 bits (bits 32 to 39)
+    Data,Var,Abs
+    Usage: 0001:0031 (Generic Desktop > Y)
+    Logical bounds: 0 to 255
+    Physical bounds: 0 to 255
+  8 bits (bits 40 to 47)
+    Data,Var,Abs
+    Usage: 0001:0032 (Generic Desktop > Z)
+    Logical bounds: 0 to 255
+    Physical bounds: 0 to 255
+  8 bits (bits 48 to 55)
+    Data,Var,Abs
+    Usage: 0001:0035 (Generic Desktop > Rz)
+    Logical bounds: 0 to 255
+    Physical bounds: 0 to 255
+  8 bits (bits 56 to 63)
+    Cnst,Ary,Abs
+    Logical bounds: 0 to 0
+ *
+ */
+
 
 #endif

@@ -1,0 +1,112 @@
+import serial
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import time
+from collections import deque
+import threading
+
+# Serial configuration
+COM_PORT = 'COM10'
+BAUD_RATE = 115200
+DISPLAY_WINDOW = 12000
+
+# Thread-safe data storage
+data_lock = threading.Lock()
+adc_buffer = deque(maxlen=DISPLAY_WINDOW)  # Stores (timestamp, value) pairs
+serial_reader = None
+timestamp = 0
+
+# Plot configuration
+PLOT_REFRESH_INTERVAL = 20  # ms 
+
+def serial_read_thread():
+    """Continuous thread for reading and parsing serial data"""
+    global serial_reader, adc_buffer, timestamp
+    buffer = b""
+    data_points_per_second = 0
+    last_time = time.time()
+    
+    while True:
+
+        try:
+            if not serial_reader:
+                serial_reader = serial.Serial(COM_PORT, BAUD_RATE, timeout=0)
+                print("Connected to serial port")
+                
+            # Read all available bytes
+            while serial_reader.in_waiting > 0:
+                buffer += serial_reader.read(serial_reader.in_waiting) #.decode('utf-8', errors='replace')
+                
+                # Process complete lines
+                while b'stat' in buffer:
+                    line, buffer = buffer.split(b'stat', 1)
+                    # print(line)
+                    # line = line.strip()
+                    if b'ende' in line:
+                        try:
+                            data = line.split(b'ende')[0]
+                            values = [int.from_bytes(data[i:i+1], 'little', signed=False) for i in range(0, len(data), 1)]
+                            for value in values:
+                                with data_lock:
+                                    adc_buffer.append((timestamp, value))
+                                    timestamp += 1
+                                    data_points_per_second += 1
+                                    while adc_buffer[0][0] < timestamp - DISPLAY_WINDOW:
+                                        adc_buffer.popleft()
+                        except (ValueError, IndexError):
+                            pass
+
+                if time.time() - last_time > 1:
+                    print(f"Data points per second: {data_points_per_second}")
+                    last_time = time.time()
+                    data_points_per_second = 0
+            if time.time() - last_time > 1:
+                print(f"Data points per second: {data_points_per_second}")
+                last_time = time.time()
+                data_points_per_second = 0
+                        
+        except serial.SerialException as e:
+            print(f"Serial error: {e}")
+            if serial_reader:
+                serial_reader.close()
+                serial_reader = None
+            time.sleep(1)
+        except Exception as e:
+            # print(f"Unexpected error: {e}")
+            raise e
+            break
+
+def update_plot(frame):
+    """Update function for matplotlib animation"""
+    with data_lock:
+        if not adc_buffer:
+            return line,
+        current_time = timestamp
+        # Convert to relative time and values
+        times = [current_time - ts for ts, _ in adc_buffer]
+        values = [val for _, val in adc_buffer]
+        # print(adc_buffer)
+    
+    line.set_data(times, values)
+    
+    # Adjust x-axis limits to show sliding window
+    # plt.xlim(max(0, times[-1]-0.1), DISPLAY_WINDOW+0.1) if times else (0, 1)
+    # plt.xlim(max(0, current_time - DISPLAY_WINDOW), current_time)
+    plt.xlim(0, DISPLAY_WINDOW)
+    return line,
+
+# Setup plot
+plt.figure(figsize=(10, 5))
+line, = plt.plot([], [], lw=2)
+plt.xlim(0, DISPLAY_WINDOW)
+plt.ylim(0, 256)
+plt.xlabel('Time (s)')
+plt.ylabel('ADC Value')
+plt.title('Real-time ADC Monitoring')
+
+# Start serial thread
+threading.Thread(target=serial_read_thread, daemon=True).start()
+
+# Start animation
+ani = FuncAnimation(plt.gcf(), update_plot, interval=PLOT_REFRESH_INTERVAL, blit=True)
+plt.show()

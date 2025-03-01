@@ -69,6 +69,7 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 osThreadId defaultTaskHandle;
 osThreadId adcTaskHandle;
@@ -188,32 +189,47 @@ int16_t reading;
 int16_t voltage[4];
 int16_t max_reading[4];
 
+uint32_t values_adc[1000];
+uint32_t adc_processed_until = 0;
+
+uint32_t adc_buffer_length = 0;
+uint32_t itr_tick = 0;
 int16_t errors[4];
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
-		drum_interrupt_counts++;
-		DrumUpdate(0);
+
+//		itr_tick++;
+//		for (int i = 0; i < 4; i++) {
+//			adc_buffer[adc_buffer_length][i] = values_adc[i];
+//		}
+//		adc_buffer[adc_buffer_length][4] = itr_tick;
+//		adc_buffer_length++;;
 
 
-		uint8_t ADSConfig[3] = {0x01,
-							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
-								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
-		uint8_t ADSWrite[1] = {0x00};
-		uint8_t ADSReceive[2];
-//		__disable_irq();
-		for (int i = 0; i < 4; i++){
-			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
 
-			int temp;
-			errors[1] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
-			errors[2] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
-//			HAL_Delay(20);
-
-			errors[3] = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
-//			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
-			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
+//		drum_interrupt_counts++;
+//		DrumUpdate(0);
+//
+//
+//		uint8_t ADSConfig[3] = {0x01,
+//							     ADS1115_OS | ADS1115_MODE_CONTINUOUS | ADS1115_PGA_ONE,
+//								 ADS1115_DATA_RATE_250 | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT | ADS1115_COMP_QUE };
+//		uint8_t ADSWrite[1] = {0x00};
+//		uint8_t ADSReceive[2];
+////		__disable_irq();
+//		for (int i = 0; i < 4; i++){
+//			ADSConfig[1] = ADS1115_OS | ADS1115_PGA_ONE | ADS1115_MODE_CONTINUOUS | ((0b100 | i) << 4); // choose AIN
+//
+//			int temp;
+//			errors[1] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSConfig, 3, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 1! %d", temp);
+//			errors[2] = HAL_I2C_Master_Transmit(&hi2c1, ADS1115_ADDRESS << 1, ADSWrite, 1, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 2! %d", temp);
+////			HAL_Delay(20);
+//
+//			errors[3] = HAL_I2C_Master_Receive(&hi2c1, ADS1115_ADDRESS << 1, ADSReceive, 2, 100);
+////			if (!temp) LCD_Print(0, r++, "ERROR 3! %d", temp);
+//			voltage[i] = (ADSReceive[0] << 8 | ADSReceive[1]);
 
 //			ADS1115_config[0] = ADS1115_OS | ain_pin_addr[i] | ADS1115_pga | ADS1115_MODE;
 //			ADS1115_config[1] = ADS1115_dataRate | ADS1115_COMP_MODE | ADS1115_COMP_POL | ADS1115_COMP_LAT| ADS1115_COMP_QUE;
@@ -229,15 +245,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 //			}
 
 
-		}
+//		}
 //		__enable_irq();
 
 //		if (drum_interrupt_counts % 2 == 0) {
-
-		keyboardhid.KEYCODE1 = drums[0].state >= DRUM_HIT ? 0x07 : 0x00;  // press 'd'
-		keyboardhid.KEYCODE2 = drums[1].state >= DRUM_HIT ? 0x09 : 0x00;  // press 'f'
-		keyboardhid.KEYCODE3 = drums[2].state >= DRUM_HIT ? 0x0d : 0x00;  // press 'j'
-		keyboardhid.KEYCODE4 = drums[3].state >= DRUM_HIT ? 0x0e : 0x00;  // press 'k'
+//
+//		keyboardhid.KEYCODE1 = drums[0].state >= DRUM_HIT ? 0x07 : 0x00;  // press 'd'
+//		keyboardhid.KEYCODE2 = drums[1].state >= DRUM_HIT ? 0x09 : 0x00;  // press 'f'
+//		keyboardhid.KEYCODE3 = drums[2].state >= DRUM_HIT ? 0x0d : 0x00;  // press 'j'
+//		keyboardhid.KEYCODE4 = drums[3].state >= DRUM_HIT ? 0x0e : 0x00;  // press 'k'
 //		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof(keyboardhid));
 //		}
 	}
@@ -290,6 +306,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 	HAL_UART_Receive_IT(&huart1, Rx_data, 1);
 }
+
+int isSent = 1;
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	isSent = 1;
+//	countinterrupt++;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -307,10 +331,10 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-//  UpdateHIDClassConfig(&Keyboard_ClassConfig);
-//  UpdateHIDItfConfig(&Keyboard_ItfConfig);
-  UpdateHIDClassConfig(&Switch_ClassConfig);
-  UpdateHIDItfConfig(&Switch_ItfConfig);
+  UpdateHIDClassConfig(&Keyboard_ClassConfig);
+  UpdateHIDItfConfig(&Keyboard_ItfConfig);
+//  UpdateHIDClassConfig(&Switch_ClassConfig);
+//  UpdateHIDItfConfig(&Switch_ItfConfig);
   MX_USB_DEVICE_Init();
   /* USER CODE END Init */
 
@@ -337,10 +361,10 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-
-
   HAL_ADCEx_Calibration_Start(&hadc1);
-  HAL_UART_Receive_IT (&huart1, Rx_data, 1);
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t*)values_adc,1000);
+  // 1.125MHz * 239.5 cycles * 4 = 0.85 ms
+//  HAL_UART_Receive_IT (&huart1, Rx_data, 1);
 
 	ButtonPadInit();
 
@@ -358,8 +382,9 @@ int main(void)
 
 //	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 //
-//	TIM3->PSC = 720 - 1;
+	TIM3->PSC = 720 - 1;
 //	TIM3->ARR = 50 * 50 - 1; // 400Hz
+	TIM3->ARR = 50 - 1; // 2000Hz
 //	HAL_TIM_Base_Start_IT(&htim3);
 //  	drum_interrupt_start_tick = HAL_GetTick();
 //
@@ -383,6 +408,7 @@ int main(void)
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
+
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
@@ -394,20 +420,20 @@ int main(void)
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
-  /* definition and creation of defaultTask */
+//  /* Create the thread(s) */
+//  /* definition and creation of defaultTask */
 //  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
 //  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* definition and creation of adcTask */
+//
+//  /* definition and creation of adcTask */
 //  osThreadDef(adcTask, StartADCTask, osPriorityRealtime, 0, 128);
 //  adcTaskHandle = osThreadCreate(osThread(adcTask), NULL);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-//  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* Start scheduler */
+//
+//  /* USER CODE BEGIN RTOS_THREADS */
+////  /* add threads, ... */
+//  /* USER CODE END RTOS_THREADS */
+//
+//  /* Start scheduler */
 //  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
@@ -433,6 +459,43 @@ int main(void)
 	uint32_t reset_ticks;
 	uint16_t temp = 0;
 	while (1) {
+
+//		char tx_buff[20] = "apple";
+//		hadc1->DMA_Handle->Instance->CNDTR;
+//		hadc1.DMA_Handle;
+
+//		sprintf(tx_buff, "adc0: %5d\n  ", (int) hadc1.DMA_Handle->Instance->CNDTR);
+//		sprintf(tx_buff, "adc0: togaw\n  ",);
+//		sprintf(tx_buff, "adc0: %5d\n  ", (int) values_adc[0]);
+
+//		HAL_UART_Transmit(&huart1, tx_buff, ((char*) tx_buff_u16) - tx_buff + 4, 1000);
+		if (isSent == 1)
+		{
+			// 9 MHz = 9 * 10^6 data points per second
+			// 9M / (239.5 + 12.5) / 40 = 892.8
+			// 9 *10^6 / (239.5 + 12.5) / 5 = 7142
+			// 9 *10^6 / (239.5 + 12.5) / 2 = 11904
+			char tx_buff[2000];
+			tx_buff[0] = 's';
+			tx_buff[1] = 't';
+			tx_buff[2] = 'a';
+			tx_buff[3] = 't';
+			int skip_count = 5;
+			int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
+			char* tx_buff_u16 = tx_buff + 4;
+			while (adc_processed_until / skip_count != adc_transferred_until / skip_count) {
+					*(tx_buff_u16++) = (uint8_t) (values_adc[adc_processed_until] >> 2);
+				adc_processed_until = (adc_processed_until + skip_count) % 1000;
+			}
+			*(((char *) tx_buff_u16) + 0) = 'e';
+			*(((char *) tx_buff_u16) + 1) = 'n';
+			*(((char *) tx_buff_u16) + 2) = 'd';
+			*(((char *) tx_buff_u16) + 3) = 'e';
+
+			  HAL_UART_Transmit_DMA(&huart1, tx_buff, ((char*) tx_buff_u16) - tx_buff + 4);
+			  isSent = 0;
+		}
+//		 HAL_Delay(20);
 //
 //		for (int i = 0; i < 4; i++) {
 //			if (voltage[i] > max_reading[i]) {
@@ -447,13 +510,13 @@ int main(void)
 //			}
 //		}
 //
-//		int r = 0;
-//		if (HAL_GetTick() - tft_last_ticks > 10) {
-//
-////			uint8_t data;
-////			HAL_UART_Receive(&huart1, &data, 1, 10);
-//
-////			AddDrum((HAL_GetTick() / 1000) % 2);
+		int r = 0;
+		if (HAL_GetTick() - tft_last_ticks > 100) {
+
+//			uint8_t data;
+//			HAL_UART_Receive(&huart1, &data, 1, 10);
+
+//			AddDrum((HAL_GetTick() / 1000) % 2);
 //			LCD_Print(0, r++, "%02ld:%02ld:%02ld.%03ld, %6.1fHz,%2d,%2d",
 //					HAL_GetTick() / (1000 * 60 * 60),
 //					HAL_GetTick() / (1000 * 60) % 60,
@@ -461,14 +524,77 @@ int main(void)
 //					(float) drum_interrupt_counts / (HAL_GetTick() - drum_interrupt_start_tick + 1) * 1000,
 //					Rx_length, btn_callbacks);
 //			LCD_Print(0, r++, "err: %4d", temp);
-////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
-////////			LCD_DrumCalibration(&r);
-////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
-////			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
-////			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
-//			//			LCD_DrumCalibration(&r);
-//			tft_last_ticks = HAL_GetTick();
-//		}
+//			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", max_reading[0], max_reading[1], max_reading[2], max_reading[3]);
+//////			LCD_DrumCalibration(&r);
+//			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", voltage[0], voltage[1], voltage[2], voltage[3]);
+//			LCD_Print(0, r++, "acd%6d %6d %6d %6d     ", errors[0], errors[1], errors[2], errors[3]);
+//			LCD_Print(0, 0, "%05d %05d", max_reading[0], voltage[0]);
+			//			LCD_DrumCalibration(&r);
+
+
+//			for (int i = 0; i < 20; i++) {
+//				LCD_Print(0, r++, "%3d %3d %3d %3d %3d",
+//									requests[i].bmRequest,
+//									requests[i].bRequest,
+//									requests[i].wValue,
+//									requests[i].wIndex,
+//									requests[i].wLength);
+//			}
+
+			/**
+			 * USBD_LL_SetupStage
+			 * USBD_StdEPReq
+			 * USBD_CUSTOM_HID_Setup
+			 *
+			 * https://gist.github.com/abarisani/4595a7c535435038e0571237893c81c4
+			 * https://github.com/keyboardio/FingerprintUSBHost/blob/master/src/FingerprintUSBHost.cpp
+			 * https://www.circuitbread.com/tutorials/how-usb-works-enumeration-and-configuration-part-3
+			 *
+			// 127/63: keyboard
+			// 150/86: switch
+
+			33 = 0x21	& USB_REQ_TYPE_MASK (0x60) = 0x20
+			129 = 0x81	& USB_REQ_TYPE_MASK (0x60) = 0x00
+
+			// windows 10:
+			// 33 10 0 0 0									USB_REQ_TYPE_CLASS		CUSTOM_HID_REQ_SET_IDLE
+			// 129 6 8704 0 127/150							USB_REQ_TYPE_STANDARD	USB_REQ_GET_DESCRIPTOR
+			// 33 9 512 0 0(1 in windows 7)	keyboard		USB_REQ_TYPE_CLASS
+			 *
+			 * 	get device descriptor (64 bytes)
+				set address
+				get device descriptor (bLength)
+				get configuration descriptor (255 bytes)
+				get string descriptors, including language/zero (255 bytes)
+				get device descriptor (bLength)
+				get configuration descriptor (1st: bLength, 2nd: wTotalLength)
+				get string descriptors, including language/zero (1st: 2 bytes, 2nd: bLength)
+
+			// switch:
+			// 129 6 8704 0 63/86
+			// 33 11 0 0 0 keyboard
+			// 33 10 0 0 0
+			// 33 9 512 0 1
+
+			// mac
+			// 129 6 8704 0 63/86
+			// 33 10 1563 0 0
+			// 33 11 1 0 0
+			 *
+			 * 	set address
+				get device descriptor (bLength)
+				get string descriptors, without language/zero (1st: 2 bytes, 2nd: bLength)
+				get configuration descriptor (1st: bLength, 2nd: wTotalLength)
+
+			// android
+			// 33 10 0 0 0
+			// 129 6 8704 0 63/86
+			// 33 9 512 0 1
+			 *
+			 */
+
+			tft_last_ticks = HAL_GetTick();
+		}
 
 //
 ////		keyboardhid.MODIFIER = 0x02;  // left Shift
@@ -478,13 +604,13 @@ int main(void)
 //			HAL_Delay (10);
 //		}
 
-		switchhid.Button = 0x04;
-		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
-		HAL_Delay (20);
-
-		switchhid.Button = 0x00;
-		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
-		HAL_Delay (20);
+//		switchhid.Button = 0x04;
+//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+//		HAL_Delay (20);
+//
+//		switchhid.Button = 0x00;
+//		temp = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &switchhid, sizeof (switchhid));
+//		HAL_Delay (20);
 
 //		keyboardhid.MODIFIER = 0x00;  // shift release
 //		keyboardhid.KEYCODE1 = 0x05;  // release key
@@ -593,14 +719,14 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV8;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV8;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV4;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -644,38 +770,38 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5; // ADC_SAMPLETIME_13CYCLES_5; // ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
 
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_2;
-  sConfig.Rank = ADC_REGULAR_RANK_3;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_3;
-  sConfig.Rank = ADC_REGULAR_RANK_4;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+//  /** Configure Regular Channel
+//  */
+//  sConfig.Channel = ADC_CHANNEL_1;
+//  sConfig.Rank = ADC_REGULAR_RANK_2;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Configure Regular Channel
+//  */
+//  sConfig.Channel = ADC_CHANNEL_2;
+//  sConfig.Rank = ADC_REGULAR_RANK_3;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Configure Regular Channel
+//  */
+//  sConfig.Channel = ADC_CHANNEL_3;
+//  sConfig.Rank = ADC_REGULAR_RANK_4;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
@@ -1050,6 +1176,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
   /* DMA2_Channel3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Channel3_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Channel3_IRQn);
