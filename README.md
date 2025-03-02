@@ -2,7 +2,7 @@
 
 A taiko drum controller from scratch.
 
-Demo Video:
+## Demo Video (click)
 [![https://youtu.be/CH2-MdVuZ9I](https://img.youtube.com/vi/CH2-MdVuZ9I/0.jpg)](https://www.youtube.com/watch?v=CH2-MdVuZ9I)
 
 ## Features
