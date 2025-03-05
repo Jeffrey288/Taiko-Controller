@@ -4,11 +4,12 @@ from matplotlib.animation import FuncAnimation
 import time
 from collections import deque
 import threading
+from functools import partial
 
 # Serial configuration
 COM_PORT = 'COM10'
-BAUD_RATE = 115200
-DISPLAY_WINDOW = 12000
+BAUD_RATE = 460800 * 2
+DISPLAY_WINDOW = 36000
 
 # Thread-safe data storage
 data_lock = threading.Lock()
@@ -103,9 +104,27 @@ plt.ylim(0, 256)
 plt.xlabel('Time (s)')
 plt.ylabel('ADC Value')
 plt.title('Real-time ADC Monitoring')
+plt.subplots_adjust(bottom=0.2)
 
 # Start serial thread
 threading.Thread(target=serial_read_thread, daemon=True).start()
+
+from matplotlib.widgets import Button
+button_axes = [plt.axes([0.125 + i * 0.2, 0.015, 0.15, 0.075]) for i in range(4)]
+buttons = {label: Button(ax, label) for ax, label in zip(button_axes, ["LK", "LD", "RD", "RK"])}
+
+def button_click(label, event):
+    if serial_reader:
+        serial_reader.write({
+            'LK': b'\x00',
+            'LD': b'\x01', 
+            'RD': b'\x02',
+            'RK': b'\x03'
+        }[label])
+        print(f"Sent command to change to {label}")
+
+for label, button in buttons.items():
+    button.on_clicked(partial(button_click, label))
 
 # Start animation
 ani = FuncAnimation(plt.gcf(), update_plot, interval=PLOT_REFRESH_INTERVAL, blit=True)

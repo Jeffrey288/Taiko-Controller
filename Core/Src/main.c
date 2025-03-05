@@ -189,14 +189,14 @@ int16_t reading;
 int16_t voltage[4];
 int16_t max_reading[4];
 
-uint32_t values_adc[1000];
-uint32_t adc_processed_until = 0;
 
 uint32_t adc_buffer_length = 0;
 uint32_t itr_tick = 0;
 int16_t errors[4];
+void processADC();
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
+		processADC();
 
 //		itr_tick++;
 //		for (int i = 0; i < 4; i++) {
@@ -314,6 +314,91 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 //	countinterrupt++;
 }
 
+uint32_t values_adc[1000];
+uint32_t adc_processed_until = 0; // in number of readings
+uint32_t total_processed = 0; // groups
+int cur_active = -1;
+int max_value = 0;
+uint32_t first_high_time = 0;
+uint32_t last_hit_time = 0;
+int32_t call_tick = -1;
+int call_array[] = {7, 9, 13, 14};
+void processADC() {
+
+//		__disable_irq();
+	int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
+//		__enable_irq();
+
+	while (adc_processed_until / 4 != adc_transferred_until / 4) {
+		int lk = values_adc[adc_processed_until];
+		int ld = values_adc[adc_processed_until + 1];
+		int rd = values_adc[adc_processed_until + 2];
+		int rk = values_adc[adc_processed_until + 3];
+		lk = (int) (lk * 1.2);
+		rk = (int) (rk * 1.2);
+		// fsm: no active (cur_active = -1) -> yes active for a period (cur_active != -1) -> cooldown (cur_active = -1, cooldown) -> no active
+
+		if (call_tick != -1 && HAL_GetTick() - call_tick > 10) {
+			keyboardhid.KEYCODE1 = 0;
+			USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+			call_tick = -1;
+		}
+
+//		if (cur_active == 4 && !(lk > 60 || ld > 60 || rd > 60 || rk > 60)) {
+//			last_hit_time = total_processed;
+//			cur_active = -1;
+//		}
+
+		else if (total_processed - last_hit_time > 60 * 2) {
+			if (cur_active == -1 && (lk > 100 || ld > 150 || rd > 150 || rk > 100)) {
+				first_high_time = total_processed;
+				max_value = lk;
+				cur_active = 0;
+			}
+
+			if ((lk > 60 || ld > 60 || rd > 60 || rk > 60)) {
+				first_high_time = total_processed;
+			}
+
+			if (cur_active != -1) {
+				if (lk > max_value) {
+					max_value = lk;
+					cur_active = 0;
+				}
+				if (ld > max_value) {
+					max_value = ld;
+					cur_active = 1;
+				}
+				if (rd > max_value) {
+					max_value = rd;
+					cur_active = 2;
+				}
+				if (rk > max_value) {
+					max_value = rk;
+					cur_active = 3;
+				}
+
+				if (total_processed - first_high_time > 3) {
+					// activate cur_active;
+					last_hit_time = total_processed;
+					call_tick = HAL_GetTick();
+					keyboardhid.KEYCODE1 = call_array[cur_active];
+					USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+
+//					char send = 'd' + call_array[cur_active] - 7;
+//					HAL_UART_Transmit(&huart1, &send, 1, 1000);
+
+					cur_active = -1; // 4
+					max_value = 0;
+				}
+			}
+		}
+
+		adc_processed_until = (adc_processed_until + 4) % 1000;
+		total_processed++;
+	}
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -385,7 +470,7 @@ int main(void)
 	TIM3->PSC = 720 - 1;
 //	TIM3->ARR = 50 * 50 - 1; // 400Hz
 	TIM3->ARR = 50 - 1; // 2000Hz
-//	HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start_IT(&htim3);
 //  	drum_interrupt_start_tick = HAL_GetTick();
 //
 //  	TIM4->PSC = 0;
@@ -458,84 +543,85 @@ int main(void)
 
 	uint32_t reset_ticks;
 	uint16_t temp = 0;
+	int uart_debug_offset = 0;
 
-	int cur_active = -1;
-	int max_value = 0;
-	uint32_t first_high_time = 0;
-	uint32_t last_hit_time = 0;
-	uint32_t total_processed = 0;
-	uint32_t adc_processed_until = 0;
-	int32_t call_tick = -1;
-	int call_array[] = {7, 9, 13, 14};
+//	int cur_active = -1;
+//	int max_value = 0;
+//	uint32_t first_high_time = 0;
+//	uint32_t last_hit_time = 0;
+//	uint32_t total_processed = 0;
+//	uint32_t adc_processed_until = 0;
+//	int32_t call_tick = -1;
+//	int call_array[] = {7, 9, 13, 14};
 	while (1) {
-
-//		 let's just assume this loop runs very very very fast
-//		__disable_irq();
-		int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
-//		__enable_irq();
-
-		while (adc_processed_until / 4 != adc_transferred_until / 4) {
-			int lk = values_adc[adc_processed_until];
-			int ld = values_adc[adc_processed_until + 1];
-			int rd = values_adc[adc_processed_until + 2];
-			int rk = values_adc[adc_processed_until + 3];
-			rk = (int) (rk * 1.2);
-			// fsm: no active (cur_active = -1) -> yes active for a period (cur_active != -1) -> cooldown (cur_active = -1, cooldown) -> no active
-
-			if (call_tick != -1 && HAL_GetTick() - call_tick > 10) {
-				keyboardhid.KEYCODE1 = 0;
-				USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-				call_tick = -1;
-			}
-
-			if (total_processed - last_hit_time > 60) {
-				if (cur_active == -1 && (lk > 100 || ld > 100 || rd > 100 || rk > 100)) {
-					first_high_time = total_processed;
-					max_value = lk;
-					cur_active = 0;
-				}
-
-				if ((lk > 60 || ld > 60 || rd > 60 || rk > 60)) {
-					first_high_time = total_processed;
-				}
-
-				if (cur_active != -1) {
-					if (lk > max_value) {
-						max_value = lk;
-						cur_active = 0;
-					}
-					if (ld > max_value) {
-						max_value = ld;
-						cur_active = 1;
-					}
-					if (rd > max_value) {
-						max_value = rd;
-						cur_active = 2;
-					}
-					if (rk > max_value) {
-						max_value = rk;
-						cur_active = 3;
-					}
-
-					if (total_processed - first_high_time > 1) {
-						// activate cur_active;
-						last_hit_time = total_processed;
-						call_tick = HAL_GetTick();
-						keyboardhid.KEYCODE1 = call_array[cur_active];
-						USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
-
-						char send = 'd' + call_array[cur_active] - 7;
-						HAL_UART_Transmit(&huart1, &send, 1, 1000);
-
-						cur_active = -1;
-						max_value = 0;
-					}
-				}
-			}
-
-			adc_processed_until = (adc_processed_until + 4) % 1000;
-			total_processed++;
-		}
+//
+////		 let's just assume this loop runs very very very fast
+////		__disable_irq();
+//		int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
+////		__enable_irq();
+//
+//		while (adc_processed_until / 4 != adc_transferred_until / 4) {
+//			int lk = values_adc[adc_processed_until];
+//			int ld = values_adc[adc_processed_until + 1];
+//			int rd = values_adc[adc_processed_until + 2];
+//			int rk = values_adc[adc_processed_until + 3];
+//			rk = (int) (rk * 1.2);
+//			// fsm: no active (cur_active = -1) -> yes active for a period (cur_active != -1) -> cooldown (cur_active = -1, cooldown) -> no active
+//
+//			if (call_tick != -1 && HAL_GetTick() - call_tick > 10) {
+//				keyboardhid.KEYCODE1 = 0;
+//				USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//				call_tick = -1;
+//			}
+//
+//			if (total_processed - last_hit_time > 60) {
+//				if (cur_active == -1 && (lk > 100 || ld > 100 || rd > 100 || rk > 100)) {
+//					first_high_time = total_processed;
+//					max_value = lk;
+//					cur_active = 0;
+//				}
+//
+//				if ((lk > 60 || ld > 60 || rd > 60 || rk > 60)) {
+//					first_high_time = total_processed;
+//				}
+//
+//				if (cur_active != -1) {
+//					if (lk > max_value) {
+//						max_value = lk;
+//						cur_active = 0;
+//					}
+//					if (ld > max_value) {
+//						max_value = ld;
+//						cur_active = 1;
+//					}
+//					if (rd > max_value) {
+//						max_value = rd;
+//						cur_active = 2;
+//					}
+//					if (rk > max_value) {
+//						max_value = rk;
+//						cur_active = 3;
+//					}
+//
+//					if (total_processed - first_high_time > 1) {
+//						// activate cur_active;
+//						last_hit_time = total_processed;
+//						call_tick = HAL_GetTick();
+//						keyboardhid.KEYCODE1 = call_array[cur_active];
+//						USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, &keyboardhid, sizeof (keyboardhid));
+//
+//						char send = 'd' + call_array[cur_active] - 7;
+//						HAL_UART_Transmit(&huart1, &send, 1, 1000);
+//
+//						cur_active = -1;
+//						max_value = 0;
+//					}
+//				}
+//			}
+//
+//			adc_processed_until = (adc_processed_until + 4) % 1000;
+//			total_processed++;
+//		}
 
 //		char send2 = ' ';
 //		HAL_UART_Transmit(&huart1, &send2, 1, 1000);
@@ -553,34 +639,41 @@ int main(void)
 
 //		HAL_UART_Transmit(&huart1, tx_buff, ((char*) tx_buff_u16) - tx_buff + 4, 1000);
 
+		char rx_buff;
+		if (HAL_UART_Receive(&huart1, &rx_buff, 1, 0)==HAL_OK) //if transfer is successful
+		{
+			if (0 <= rx_buff & rx_buff <= 3) {
+				uart_debug_offset = rx_buff;
+			}
+		}
 
 
-//		if (isSent == 1)
-//		{
-//			// 9 MHz = 9 * 10^6 data points per second
-//			// 9M / (239.5 + 12.5) / 40 = 892.8
-//			// 9 *10^6 / (239.5 + 12.5) / 5 = 7142
-//			// 9 *10^6 / (239.5 + 12.5) / 2 = 11904
-//			char tx_buff[2000];
-//			tx_buff[0] = 's';
-//			tx_buff[1] = 't';
-//			tx_buff[2] = 'a';
-//			tx_buff[3] = 't';
-//			int skip_count = 4;
-//			int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
-//			char* tx_buff_u16 = tx_buff + 4;
-//			while (adc_processed_until / skip_count != adc_transferred_until / skip_count) {
-//					*(tx_buff_u16++) = (uint8_t) (values_adc[adc_processed_until + 1] >> 2);
-//				adc_processed_until = (adc_processed_until + skip_count) % 1000;
-//			}
-//			*(((char *) tx_buff_u16) + 0) = 'e';
-//			*(((char *) tx_buff_u16) + 1) = 'n';
-//			*(((char *) tx_buff_u16) + 2) = 'd';
-//			*(((char *) tx_buff_u16) + 3) = 'e';
-//
-//			  HAL_UART_Transmit_DMA(&huart1, tx_buff, ((char*) tx_buff_u16) - tx_buff + 4);
-//			  isSent = 0;
-//		}
+		if (isSent == 1)
+		{
+			// 9 MHz = 9 * 10^6 data points per second
+			// 9M / (239.5 + 12.5) / 40 = 892.8
+			// 9 *10^6 / (239.5 + 12.5) / 5 = 7142
+			// 9 *10^6 / (239.5 + 12.5) / 2 = 11904
+			char tx_buff[2000];
+			tx_buff[0] = 's';
+			tx_buff[1] = 't';
+			tx_buff[2] = 'a';
+			tx_buff[3] = 't';
+			int skip_count = 4;
+			int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
+			char* tx_buff_u16 = tx_buff + 4;
+			while (adc_processed_until / skip_count != adc_transferred_until / skip_count) {
+					*(tx_buff_u16++) = (uint8_t) (values_adc[adc_processed_until + uart_debug_offset] >> 2);
+				adc_processed_until = (adc_processed_until + skip_count) % 1000;
+			}
+			*(((char *) tx_buff_u16) + 0) = 'e';
+			*(((char *) tx_buff_u16) + 1) = 'n';
+			*(((char *) tx_buff_u16) + 2) = 'd';
+			*(((char *) tx_buff_u16) + 3) = 'e';
+
+			  HAL_UART_Transmit_DMA(&huart1, tx_buff, ((char*) tx_buff_u16) - tx_buff + 4);
+			  isSent = 0;
+		}
 
 
 
@@ -862,7 +955,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5; // ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -1237,7 +1330,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 921600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
