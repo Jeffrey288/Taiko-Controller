@@ -7,6 +7,12 @@ A Taiko Drum Controller made from scratch with emphasis on low latency, responsi
 ## Demo Video (click)
 [![https://youtu.be/CH2-MdVuZ9I](https://img.youtube.com/vi/CH2-MdVuZ9I/0.jpg)](https://www.youtube.com/watch?v=CH2-MdVuZ9I)
 
+The following shows an example of the ADC output:
+![adc output](adc-example.png)
+
+There is also cross-talk between sensors, and the different magnitude of sensor output should also be taken in to account.
+For example, the vibration magnitude in Don sensors are usually higher than Ka sensors. This should be balanced.
+
 ## Features
 
 - Compatible with both PC and Nintendo Switch
