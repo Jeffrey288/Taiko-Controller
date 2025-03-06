@@ -323,20 +323,51 @@ uint32_t first_high_time = 0;
 uint32_t last_hit_time = 0;
 int32_t call_tick = -1;
 int call_array[] = {7, 9, 13, 14};
+int uart_debug = 0;
+
+#define AVG_WINDOW 3
+uint16_t past_values[4][AVG_WINDOW]; // average over past 4 values
+int16_t sum_past[4];
+int16_t avg_past[4];
+uint8_t cur_past_idx = 0;
+
+
+// hit -> peak
+// find the highest peak
+// when no update of max after some duration (say 3), activate drum (cuz should be peak, won't need to care)
+// then the values will slowly decrease, this is the timeout
+// smaller peaks beyond the max should be ignored, we don't want to care about them -> double reaction + cross reaction
+//
 void processADC() {
+
+	if (uart_debug) return;
 
 //		__disable_irq();
 	int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
 //		__enable_irq();
 
 	while (adc_processed_until / 4 != adc_transferred_until / 4) {
+
+//		for (int i = 0; i < 4; i++) {
+////			sum_past[i] += - past_values[cur_past_idx][i] + new_value;
+//			uint16_t new_value = values_adc[adc_processed_until + i];
+//			past_values[cur_past_idx][i] = new_value;
+//			sum_past[i] = 0;
+//			for (int j = 0; j < AVG_WINDOW; j++) {
+//				sum_past[i] += past_values[i][j];
+//			}
+//			avg_past[i] = sum_past[i] / AVG_WINDOW;
+//		}
+//		cur_past_idx = (cur_past_idx + 1) % AVG_WINDOW;
+
 		int lk = values_adc[adc_processed_until];
 		int ld = values_adc[adc_processed_until + 1];
 		int rd = values_adc[adc_processed_until + 2];
 		int rk = values_adc[adc_processed_until + 3];
-		lk = (int) (lk * 1.2);
-		rk = (int) (rk * 1.2);
-		// fsm: no active (cur_active = -1) -> yes active for a period (cur_active != -1) -> cooldown (cur_active = -1, cooldown) -> no active
+//		int lk = avg_past[0];
+//		int ld = avg_past[1];
+//		int rd = avg_past[2];
+//		int rk = avg_past[3];
 
 		if (call_tick != -1 && HAL_GetTick() - call_tick > 10) {
 			keyboardhid.KEYCODE1 = 0;
@@ -344,13 +375,8 @@ void processADC() {
 			call_tick = -1;
 		}
 
-//		if (cur_active == 4 && !(lk > 60 || ld > 60 || rd > 60 || rk > 60)) {
-//			last_hit_time = total_processed;
-//			cur_active = -1;
-//		}
-
-		else if (total_processed - last_hit_time > 60 * 2) {
-			if (cur_active == -1 && (lk > 100 || ld > 150 || rd > 150 || rk > 100)) {
+		if (total_processed - last_hit_time > 60) {
+			if (cur_active == -1 && (lk > 100 || ld > 100 || rd > 100 || rk > 100)) {
 				first_high_time = total_processed;
 				max_value = lk;
 				cur_active = 0;
@@ -378,7 +404,7 @@ void processADC() {
 					cur_active = 3;
 				}
 
-				if (total_processed - first_high_time > 3) {
+				if (total_processed - first_high_time > 1) {
 					// activate cur_active;
 					last_hit_time = total_processed;
 					call_tick = HAL_GetTick();
@@ -388,7 +414,7 @@ void processADC() {
 //					char send = 'd' + call_array[cur_active] - 7;
 //					HAL_UART_Transmit(&huart1, &send, 1, 1000);
 
-					cur_active = -1; // 4
+					cur_active = -1;
 					max_value = 0;
 				}
 			}
@@ -545,6 +571,7 @@ int main(void)
 	uint16_t temp = 0;
 	int uart_debug_offset = 0;
 
+
 //	int cur_active = -1;
 //	int max_value = 0;
 //	uint32_t first_high_time = 0;
@@ -645,13 +672,16 @@ int main(void)
 			if (0 <= rx_buff & rx_buff <= 3) {
 				uart_debug_offset = rx_buff;
 			}
+			else if (rx_buff == 90) {
+				uart_debug = uart_debug ? 0 : 1;
+			}
 		}
 
 
-		if (isSent == 1)
+		if (uart_debug && isSent == 1)
 		{
 			// 9 MHz = 9 * 10^6 data points per second
-			// 9M / (239.5 + 12.5) / 40 = 892.8
+			// 9M / (239.5 + 12.5) / 40 = 8.8
 			// 9 *10^6 / (239.5 + 12.5) / 5 = 7142
 			// 9 *10^6 / (239.5 + 12.5) / 2 = 11904
 			char tx_buff[2000];
@@ -659,12 +689,12 @@ int main(void)
 			tx_buff[1] = 't';
 			tx_buff[2] = 'a';
 			tx_buff[3] = 't';
-			int skip_count = 4;
+			int skip_count = 1;
 			int adc_transferred_until = 1000 - hadc1.DMA_Handle->Instance->CNDTR;
 			char* tx_buff_u16 = tx_buff + 4;
-			while (adc_processed_until / skip_count != adc_transferred_until / skip_count) {
-					*(tx_buff_u16++) = (uint8_t) (values_adc[adc_processed_until + uart_debug_offset] >> 2);
-				adc_processed_until = (adc_processed_until + skip_count) % 1000;
+			while (adc_processed_until / 4 != adc_transferred_until / 4) {
+				*(tx_buff_u16++) = (uint8_t) (values_adc[adc_processed_until] >> 2);
+				adc_processed_until = (adc_processed_until + 1) % 1000;
 			}
 			*(((char *) tx_buff_u16) + 0) = 'e';
 			*(((char *) tx_buff_u16) + 1) = 'n';
@@ -955,7 +985,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5; // ADC_SAMPLETIME_239CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5; // ADC_SAMPLETIME_71CYCLES_5; // ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
