@@ -24,8 +24,15 @@ For example, the vibration magnitude in Don sensors are usually higher than Ka s
 
 ## TODOs
 
-- Replace RK sensor
-- Improve double reaction and cross reaction issues
+### Improve double reaction and cross-reaction issues
+
+- **do not reference others. this is a task to practice problem-solving skills**
+- export several exerpts of the adc values when drumming to a known ground truth chart
+- fix the adc sampler freq so that the timing of the values are known
+- then, tune the program externally
+- see if sdio can use dma, or just switch to spi entirely (but then need to use other libraries, see which one is quicker)
+
+### Others
 - Further stablize ADC with voltage reference and input source filtering and improve wiring
 - Implement PS4 and Wii controllers
 - Support host OS detection and automatically change device type
